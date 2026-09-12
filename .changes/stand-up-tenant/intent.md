@@ -34,20 +34,20 @@ A Cloudflare Worker resolves every request to the single Tenant object named `ma
 - Rate limiting of anything except login
 
 ## Definition of Done
-- [ ] On a fresh Instance `/setup` shows a form; submitting a username and password creates the user, starts a session and redirects to `/`.
-- [ ] `/setup` rejects an empty username or password with the form re-rendered and creates nothing.
-- [ ] Once a user exists, GET and POST `/setup` redirect to `/login` and create nothing.
-- [ ] A protected page without a valid session redirects to `/login?next=<path>`.
-- [ ] Correct credentials set a `sessionid` cookie with HttpOnly, SameSite=Lax, Path=/ and a fourteen-day Max-Age, with Secure only over https, and redirect to `next` when it is a same-origin path, otherwise to `/`.
-- [ ] Wrong credentials, or an unknown username, answer 401 with the login form, an error message and no cookie.
-- [ ] After five failed attempts for a username within fifteen minutes, the next attempt answers 429 even with the right password; once the window has passed, or after a successful login, attempts are accepted again.
-- [ ] `/logout` deletes the session and clears the cookie; the old cookie no longer grants access.
-- [ ] A session older than its lifetime is rejected and the request redirects to `/login`.
-- [ ] Change password succeeds only with the correct current password and a matching confirmation; afterwards the new password logs in and the old one does not.
-- [ ] A form POST whose `Origin` is another site is refused with 403.
-- [ ] `/health` answers 200 JSON with `status` and `version` without a session.
-- [ ] Applying migrations to an object that already has them changes nothing and `schema_migrations` holds one row per migration.
-- [ ] `npm test` runs inside workerd and is green.
+- [x] On a fresh Instance `/setup` shows a form; submitting a username and password creates the user, starts a session and redirects to `/`.
+- [x] `/setup` rejects an empty username or password with the form re-rendered and creates nothing.
+- [x] Once a user exists, GET and POST `/setup` redirect to `/login` and create nothing.
+- [x] A protected page without a valid session redirects to `/login?next=<path>`.
+- [x] Correct credentials set a `sessionid` cookie with HttpOnly, SameSite=Lax, Path=/ and a fourteen-day Max-Age, with Secure only over https, and redirect to `next` when it is a same-origin path, otherwise to `/`.
+- [x] Wrong credentials, or an unknown username, answer 401 with the login form, an error message and no cookie.
+- [x] After five failed attempts for a username within fifteen minutes, the next attempt answers 429 even with the right password; once the window has passed, or after a successful login, attempts are accepted again.
+- [x] `/logout` deletes the session and clears the cookie; the old cookie no longer grants access.
+- [x] A session older than its lifetime is rejected and the request redirects to `/login`.
+- [x] Change password succeeds only with the correct current password and a matching confirmation; afterwards the new password logs in and the old one does not.
+- [x] A form POST whose `Origin` is another site is refused with 403.
+- [x] `/health` answers 200 JSON with `status` and `version` without a session.
+- [x] Applying migrations to an object that already has them changes nothing and `schema_migrations` holds one row per migration.
+- [x] `npm test` runs inside workerd and is green.
 
 ## Manual verification
 - [ ] `wrangler dev` serves `/setup`, the stylesheet from `public/` and the login flow in a browser.
