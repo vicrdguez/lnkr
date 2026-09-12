@@ -4,31 +4,19 @@ export const BASE = "https://lnkr.test";
 export const USERNAME = "vic";
 export const PASSWORD = "correct horse battery";
 
-type Options = { cookie?: string; origin?: string; base?: string };
+/** `cookie` is a `sessionid` value; `origin` defaults to `base`, which defaults to `BASE`. */
+export type Options = { cookie?: string; origin?: string; base?: string };
 
-export function get(path: string, cookie?: string, base = BASE): Promise<Response> {
-  return exports.default.fetch(new URL(path, base), {
-    headers: cookie ? { cookie: `sessionid=${cookie}` } : {},
-    redirect: "manual",
-  });
+export function get(path: string, options: Options = {}): Promise<Response> {
+  return request(path, {}, options);
 }
 
-export function formPost(
-  path: string,
-  fields: Record<string, string>,
-  { cookie, origin, base = BASE }: Options = {},
-): Promise<Response> {
-  const headers: Record<string, string> = {
+export function formPost(path: string, fields: Record<string, string>, options: Options = {}): Promise<Response> {
+  const headers = {
     "content-type": "application/x-www-form-urlencoded",
-    origin: origin ?? base,
+    origin: options.origin ?? options.base ?? BASE,
   };
-  if (cookie) headers.cookie = `sessionid=${cookie}`;
-  return exports.default.fetch(new URL(path, base), {
-    method: "POST",
-    headers,
-    body: new URLSearchParams(fields).toString(),
-    redirect: "manual",
-  });
+  return request(path, { method: "POST", headers, body: new URLSearchParams(fields).toString() }, options);
 }
 
 export function login(username: string, password: string, options?: Options): Promise<Response> {
@@ -63,4 +51,14 @@ export function cookieOf(response: Response): string | undefined {
 
 export function location(response: Response): URL {
   return new URL(response.headers.get("location") ?? "", BASE);
+}
+
+function request(
+  path: string,
+  init: { method?: string; headers?: Record<string, string>; body?: string },
+  { cookie, base = BASE }: Options,
+): Promise<Response> {
+  const headers = { ...init.headers };
+  if (cookie) headers.cookie = `sessionid=${cookie}`;
+  return exports.default.fetch(new URL(path, base), { ...init, headers, redirect: "manual" });
 }

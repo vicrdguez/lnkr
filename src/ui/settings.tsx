@@ -10,9 +10,9 @@ const SettingsPage = ({ user, error }: { user: User; error?: string }) => (
     <ErrorMessage message={error} />
     <h2>Change password</h2>
     <form method="post" action="/settings/password">
-      <Field label="Current password" name="current" type="password" />
-      <Field label="New password" name="password" type="password" />
-      <Field label="Confirm new password" name="confirm" type="password" />
+      <Field label="Current password" name="current" type="password" autocomplete="current-password" />
+      <Field label="New password" name="password" type="password" autocomplete="new-password" />
+      <Field label="Confirm new password" name="confirm" type="password" autocomplete="new-password" />
       <button>Change password</button>
     </form>
   </Layout>

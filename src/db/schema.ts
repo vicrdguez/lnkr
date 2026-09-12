@@ -35,3 +35,8 @@ export function runMigrations(sql: SqlStorage): void {
     sql.exec("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)", version, new Date().toISOString());
   });
 }
+
+/** Throws when the database cannot answer a trivial query. */
+export function ping(sql: SqlStorage): void {
+  sql.exec("SELECT 1").toArray();
+}

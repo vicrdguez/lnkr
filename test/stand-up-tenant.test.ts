@@ -1,6 +1,6 @@
 import { runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { migrations, runMigrations } from "../src/db/schema";
 import {
   BASE,
@@ -49,6 +49,7 @@ describe("First-run setup", () => {
 
     expect(response.status).toBe(200);
     const html = await response.text();
+    expect(html).toContain("<form");
     expect(html).toContain('name="username"');
     expect(html).toContain('name="password"');
   });
@@ -60,7 +61,7 @@ describe("First-run setup", () => {
     expect(location(response).pathname).toBe("/");
     const cookie = cookieOf(response);
     expect(cookie).toBeTruthy();
-    expect((await get("/settings", cookie)).status).toBe(200);
+    expect((await get("/settings", { cookie })).status).toBe(200);
   });
 
   it.each([
@@ -75,10 +76,8 @@ describe("First-run setup", () => {
     expect(html).toContain('role="alert"');
     expect((await get("/setup")).status).toBe(200);
   });
-});
 
-describe("First-run setup, once a user exists", () => {
-  it.each(["GET", "POST"])("is closed (%s)", async (method) => {
+  it.each(["GET", "POST"])("is closed once a user exists (%s)", async (method) => {
     await setupTenant();
 
     const response =
@@ -112,7 +111,7 @@ describe("Password login", () => {
     expect(cookieAttributes(response)).toEqual(
       expect.arrayContaining(["httponly", "samesite=lax", "path=/", "max-age=1209600"]),
     );
-    expect((await get("/settings", cookieOf(response))).status).toBe(200);
+    expect((await get("/settings", { cookie: cookieOf(response) })).status).toBe(200);
   });
 
   it.each([
@@ -121,6 +120,8 @@ describe("Password login", () => {
   ])("sets the Secure flag by request scheme (%s)", async (scheme, secure) => {
     const response = await login(USERNAME, PASSWORD, { base: `${scheme}://lnkr.test` });
 
+    expect(response.status).toBe(302);
+    expect(cookieOf(response)).toBeTruthy();
     expect(cookieAttributes(response).includes("secure")).toBe(secure);
   });
 
@@ -154,7 +155,7 @@ describe("Password login", () => {
   it("redirects root by session", async () => {
     const cookie = cookieOf(await login(USERNAME, PASSWORD));
 
-    const loggedIn = await get("/", cookie);
+    const loggedIn = await get("/", { cookie });
     expect(loggedIn.status).toBe(302);
     expect(location(loggedIn).href).toBe(`${BASE}/settings`);
 
@@ -164,47 +165,9 @@ describe("Password login", () => {
   });
 });
 
-describe("Session lifecycle", () => {
-  let cookie: string;
-
-  beforeEach(async () => {
-    cookie = await setupTenant();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("ends the session on logout", async () => {
-    const response = await formPost("/logout", {}, { cookie });
-
-    expect(response.status).toBe(302);
-    expect(location(response).pathname).toBe("/login");
-    expect(cookieAttributes(response)).toContain("max-age=0");
-
-    const afterwards = await get("/settings", cookie);
-    expect(afterwards.status).toBe(302);
-    expect(location(afterwards).searchParams.get("next")).toBe("/settings");
-  });
-
-  it("rejects an expired session", async () => {
-    vi.setSystemTime(Date.now() + 15 * 24 * 60 * 60 * 1000);
-
-    const response = await get("/settings", cookie);
-
-    expect(response.status).toBe(302);
-    expect(location(response).pathname).toBe("/login");
-    expect(location(response).searchParams.get("next")).toBe("/settings");
-  });
-});
-
 describe("Login attempt limiter", () => {
   beforeEach(async () => {
     await setupTenant();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   async function failLogins(times: number) {
@@ -240,7 +203,39 @@ describe("Login attempt limiter", () => {
     const response = await login(USERNAME, PASSWORD);
 
     expect(response.status).toBe(302);
+    expect(location(response).pathname).toBe("/");
     expect(cookieOf(response)).toBeTruthy();
+  });
+});
+
+describe("Session lifecycle", () => {
+  let cookie: string;
+
+  beforeEach(async () => {
+    cookie = await setupTenant();
+  });
+
+  it("ends the session on logout", async () => {
+    const response = await formPost("/logout", {}, { cookie });
+
+    expect(response.status).toBe(302);
+    expect(location(response).pathname).toBe("/login");
+    expect(cookieAttributes(response)).toContain("max-age=0");
+
+    const afterwards = await get("/settings", { cookie });
+    expect(afterwards.status).toBe(302);
+    expect(location(afterwards).pathname).toBe("/login");
+    expect(location(afterwards).searchParams.get("next")).toBe("/settings");
+  });
+
+  it("rejects an expired session", async () => {
+    vi.setSystemTime(Date.now() + 15 * 24 * 60 * 60 * 1000);
+
+    const response = await get("/settings", { cookie });
+
+    expect(response.status).toBe(302);
+    expect(location(response).pathname).toBe("/login");
+    expect(location(response).searchParams.get("next")).toBe("/settings");
   });
 });
 

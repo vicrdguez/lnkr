@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../app";
 import { hashPassword, verifyPassword } from "../auth/password";
-import { endSession, requireSession, sessionUser, startSession } from "../auth/session";
+import { endSession, sessionUser, startSession } from "../auth/session";
 import { clearLoginFailures, isLoginLocked, recordLoginFailure } from "../db/sessions";
 import { countUsers, createUser, findUserByUsername } from "../db/users";
 import { ErrorMessage, Field, Layout } from "../views/layout";
@@ -11,9 +11,9 @@ const SetupPage = ({ error }: { error?: string }) => (
   <Layout title="Set up lnkr">
     <ErrorMessage message={error} />
     <form method="post">
-      <Field label="Username" name="username" />
-      <Field label="Password" name="password" type="password" />
-      <button>Create account</button>
+      <Field label="Username" name="username" autocomplete="username" />
+      <Field label="Password" name="password" type="password" autocomplete="new-password" />
+      <button>Set up</button>
     </form>
   </Layout>
 );
@@ -22,8 +22,8 @@ const LoginPage = ({ error }: { error?: string }) => (
   <Layout title="Log in">
     <ErrorMessage message={error} />
     <form method="post">
-      <Field label="Username" name="username" />
-      <Field label="Password" name="password" type="password" />
+      <Field label="Username" name="username" autocomplete="username" />
+      <Field label="Password" name="password" type="password" autocomplete="current-password" />
       <button>Log in</button>
     </form>
   </Layout>
@@ -45,7 +45,7 @@ auth.post("/setup", async (c) => {
   // Hashing yielded; another request may have completed setup meanwhile.
   if (countUsers(sql)) return c.redirect("/login");
   const user = createUser(sql, name, passwordHash, new Date().toISOString());
-  startSession(c, user.id);
+  await startSession(c, user.id);
   return c.redirect("/");
 });
 
@@ -63,12 +63,12 @@ auth.post("/login", async (c) => {
     return c.html(<LoginPage error="Invalid username or password" />, 401);
   }
   clearLoginFailures(sql, username);
-  startSession(c, user.id);
+  await startSession(c, user.id);
   return c.redirect(sameOriginPath(c.req.query("next"), c.req.url));
 });
 
-auth.post("/logout", requireSession, (c) => {
-  endSession(c);
+auth.post("/logout", async (c) => {
+  await endSession(c);
   return c.redirect("/login");
 });
 

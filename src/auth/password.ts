@@ -1,3 +1,5 @@
+import { fromBase64, toBase64 } from "../base64";
+
 // Production workerd refuses PBKDF2 iteration counts above 100,000; never raise this.
 const ITERATIONS = 100_000;
 const ALGORITHM = "pbkdf2_sha256";
@@ -11,10 +13,11 @@ export async function hashPassword(password: string): Promise<string> {
 
 /** Constant-time comparison of `password` against a hash from `hashPassword`. */
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
-  const [algorithm, iterations, salt, key] = stored.split("$");
-  if (algorithm !== ALGORITHM || !iterations || !salt || !key) return false;
+  const [algorithm, iterationsText, salt, key] = stored.split("$");
+  const iterations = Number(iterationsText);
+  if (algorithm !== ALGORITHM || !Number.isInteger(iterations) || iterations < 1 || !salt || !key) return false;
   const expected = fromBase64(key);
-  const actual = await derive(password, fromBase64(salt), Number(iterations));
+  const actual = await derive(password, fromBase64(salt), iterations);
   return actual.byteLength === expected.byteLength && crypto.subtle.timingSafeEqual(actual, expected);
 }
 
@@ -24,12 +27,4 @@ async function derive(password: string, salt: Uint8Array, iterations: number): P
   ]);
   const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, material, 256);
   return new Uint8Array(bits);
-}
-
-function toBase64(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes));
-}
-
-function fromBase64(text: string): Uint8Array {
-  return Uint8Array.from(atob(text), (char) => char.charCodeAt(0));
 }

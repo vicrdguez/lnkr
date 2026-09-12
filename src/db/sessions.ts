@@ -1,7 +1,8 @@
+import { toBase64Url } from "../base64";
 import { toUser, type User, type UserRow } from "./users";
 
 export function createSession(sql: SqlStorage, userId: number, expiresAt: string): string {
-  const id = base64url(crypto.getRandomValues(new Uint8Array(32)));
+  const id = toBase64Url(crypto.getRandomValues(new Uint8Array(32)));
   sql.exec("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)", id, userId, expiresAt);
   return id;
 }
@@ -24,10 +25,6 @@ export function findSessionUser(sql: SqlStorage, id: string, now: string): User 
 
 export function deleteSession(sql: SqlStorage, id: string): void {
   sql.exec("DELETE FROM sessions WHERE id = ?", id);
-}
-
-function base64url(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 }
 
 export const MAX_LOGIN_FAILURES = 5;

@@ -4,6 +4,7 @@ import type { User } from "../db/users";
 
 export const Layout: FC<PropsWithChildren<{ title: string; user?: User | null }>> = ({ title, user, children }) => (
   <>
+    {/* The only unescaped fragment: a constant doctype, which JSX cannot express. */}
     {raw("<!doctype html>")}
     <html lang="en">
       <head>
@@ -33,10 +34,15 @@ export const Layout: FC<PropsWithChildren<{ title: string; user?: User | null }>
   </>
 );
 
-export const Field: FC<{ label: string; name: string; type?: string }> = ({ label, name, type = "text" }) => (
+export const Field: FC<{ label: string; name: string; type?: string; autocomplete?: string }> = ({
+  label,
+  name,
+  type = "text",
+  autocomplete,
+}) => (
   <label>
     {label}
-    <input name={name} type={type} required />
+    <input name={name} type={type} autocomplete={autocomplete} required />
   </label>
 );
 

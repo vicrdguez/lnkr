@@ -5,4 +5,4 @@ nav form { display: inline; }
 label { display: block; margin-top: 1rem; }
 input { display: block; width: 100%; padding: 0.4rem; margin-top: 0.25rem; }
 button { margin-top: 1rem; padding: 0.4rem 1rem; }
-.error { color: #b00020; }
+.error { color: light-dark(#b00020, #ff6b6b); }

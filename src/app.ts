@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { csrf } from "hono/csrf";
 import pkg from "../package.json";
 import { requireSession } from "./auth/session";
+import { ping } from "./db/schema";
 import type { User } from "./db/users";
 import { auth } from "./ui/auth";
 import { settings } from "./ui/settings";
@@ -16,18 +17,17 @@ export function createApp({ sql }: AppDeps): Hono<AppEnv> {
     c.set("sql", sql);
     await next();
   });
+  app.use(requireSession);
 
   app.get("/health", (c) => {
     try {
-      sql.exec("SELECT 1").toArray();
+      ping(sql);
       return c.json({ version: pkg.version, status: "healthy" });
     } catch {
       return c.json({ version: pkg.version, status: "unhealthy" }, 500);
     }
   });
-
   app.route("/", auth);
-  app.use(requireSession); // every route registered below needs a session
   app.route("/", settings);
 
   return app;
