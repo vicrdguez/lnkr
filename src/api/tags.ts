@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../app";
 import { deleteTag, ensureTag, getTag, listTags } from "../db/tags";
 import { pageParams, paginate } from "./envelope";
-import { invalid, jsonBody, notFound, parseError, tagJson } from "./serialize";
+import { intParam, invalid, jsonBody, notFound, parseError, tagJson } from "./serialize";
 
 export const tags = new Hono<AppEnv>();
 
@@ -21,8 +21,8 @@ tags.post("/tags", async (c) => {
 });
 
 tags.get("/tags/:id", (c) => {
-  const tag = getTag(c.get("sql"), Number(c.req.param("id")));
+  const tag = getTag(c.get("sql"), intParam(c, "id"));
   return tag ? c.json(tagJson(tag)) : notFound(c);
 });
 
-tags.delete("/tags/:id", (c) => (deleteTag(c.get("sql"), Number(c.req.param("id"))) ? c.body(null, 204) : notFound(c)));
+tags.delete("/tags/:id", (c) => (deleteTag(c.get("sql"), intParam(c, "id")) ? c.body(null, 204) : notFound(c)));

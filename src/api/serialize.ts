@@ -38,3 +38,9 @@ export async function jsonBody(c: Context): Promise<Record<string, unknown> | nu
   }
 }
 export const parseError = (c: Context) => c.json({ detail: "JSON parse error" }, 400);
+
+/** The integer path parameter `name`, or -1 (which no row has) when it is not one. */
+export function intParam(c: Context, name: string): number {
+  const value = Number(c.req.param(name));
+  return Number.isInteger(value) ? value : -1;
+}

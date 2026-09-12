@@ -2,17 +2,20 @@ import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
 import {
   type BookmarkFields,
+  deleteBookmark,
   EMPTY_BOOKMARK,
   findBookmarkByUrl,
+  getBookmark,
   insertBookmark,
   listBookmarks,
+  setArchived,
   setTags,
   toFields,
   updateBookmark,
 } from "../db/bookmarks";
 import { fetchPageMetadata } from "../services/metadata";
 import { pageParams, paginate } from "./envelope";
-import { bookmarkJson, type FieldErrors, invalid, jsonBody, parseError } from "./serialize";
+import { bookmarkJson, type FieldErrors, intParam, invalid, jsonBody, notFound, parseError } from "./serialize";
 
 /** The writable fields a request body supplied. */
 type Provided = Partial<BookmarkFields> & { tag_names?: string[] };
@@ -75,7 +78,18 @@ const list = (archived: boolean) => (c: Context<AppEnv>) => {
   return c.json(paginate(c, count, rows.map((row) => bookmarkJson(sql, row))));
 };
 bookmarks.get("/bookmarks", list(false));
+// Fixed paths come before the :id routes so they are never read as ids.
 bookmarks.get("/bookmarks/archived", list(true));
+
+/** The existing bookmark for `url` and the page's metadata, fetched even when the bookmark exists. */
+bookmarks.get("/bookmarks/check", async (c) => {
+  const url = c.req.query("url")?.trim();
+  if (!url) return invalid(c, { url: ["This field is required."] });
+  const metadata = await fetchPageMetadata(url);
+  const sql = c.get("sql");
+  const existing = findBookmarkByUrl(sql, url);
+  return c.json({ bookmark: existing ? bookmarkJson(sql, existing) : null, metadata, auto_tags: [] });
+});
 
 /** Creates the bookmark, or updates the one that already has its URL; either way 201. */
 bookmarks.post("/bookmarks", async (c) => {
@@ -98,3 +112,39 @@ bookmarks.post("/bookmarks", async (c) => {
   if (provided.tag_names) setTags(sql, row.id, provided.tag_names, now);
   return c.json(bookmarkJson(sql, row), 201);
 });
+
+bookmarks.get("/bookmarks/:id", (c) => {
+  const sql = c.get("sql");
+  const row = getBookmark(sql, intParam(c, "id"));
+  return row ? c.json(bookmarkJson(sql, row)) : notFound(c);
+});
+
+/** PUT replaces every writable field with defaults for omitted ones; PATCH keeps what the body omits. */
+async function update(c: Context<AppEnv>, patch: boolean) {
+  const body = await jsonBody(c);
+  if (!body) return parseError(c);
+  const sql = c.get("sql");
+  const existing = getBookmark(sql, intParam(c, "id"));
+  if (!existing) return notFound(c);
+  const { fields: provided, errors } = readFields(body, patch);
+  if (errors) return invalid(c, errors);
+  const fields: BookmarkFields = { ...(patch ? toFields(existing) : EMPTY_BOOKMARK), ...provided };
+  const owner = findBookmarkByUrl(sql, fields.url);
+  if (owner && owner.id !== existing.id) return invalid(c, { url: ["A bookmark with this URL already exists."] });
+  const now = new Date().toISOString();
+  const row = updateBookmark(sql, existing.id, fields, now);
+  const tagNames = provided.tag_names ?? (patch ? undefined : []);
+  if (tagNames) setTags(sql, row.id, tagNames, now);
+  return c.json(bookmarkJson(sql, row));
+}
+bookmarks.put("/bookmarks/:id", (c) => update(c, false));
+bookmarks.patch("/bookmarks/:id", (c) => update(c, true));
+
+bookmarks.delete("/bookmarks/:id", (c) =>
+  deleteBookmark(c.get("sql"), intParam(c, "id")) ? c.body(null, 204) : notFound(c),
+);
+
+const archive = (archived: boolean) => (c: Context<AppEnv>) =>
+  setArchived(c.get("sql"), intParam(c, "id"), archived, new Date().toISOString()) ? c.body(null, 204) : notFound(c);
+bookmarks.post("/bookmarks/:id/archive", archive(true));
+bookmarks.post("/bookmarks/:id/unarchive", archive(false));
