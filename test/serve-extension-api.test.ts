@@ -383,6 +383,14 @@ describe("Check a URL", () => {
     expect((body.metadata as Json).title).toBe("Real");
   });
 
+  it("reads only the first title element", async () => {
+    mockPage("https://example.com/svg", "<title>Page</title><svg><title>Icon</title></svg>");
+
+    const body = await (await api(token).get("/api/bookmarks/check/?url=https://example.com/svg")).json<Json>();
+
+    expect((body.metadata as Json).title).toBe("Page");
+  });
+
   it("requires the url parameter", async () => {
     const response = await api(token).get("/api/bookmarks/check/");
 

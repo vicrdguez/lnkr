@@ -20,8 +20,13 @@ export async function fetchPageMetadata(url: string): Promise<PageMetadata> {
         found[key] = element.getAttribute("content") ?? "";
       },
     });
+    // Only the first <title> is the page's; later ones belong to inline SVGs.
+    let titles = 0;
     const page = new HTMLRewriter()
-      .on("title", { text: (chunk) => void (found.title += chunk.text) })
+      .on("title", {
+        element: () => void titles++,
+        text: (chunk) => void (titles === 1 && (found.title += chunk.text)),
+      })
       .on('meta[property="og:title"]', content("ogTitle"))
       .on('meta[name="description"]', content("description"))
       .on('meta[property="og:description"]', content("ogDescription"))
