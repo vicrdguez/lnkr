@@ -225,9 +225,12 @@ describe("List bookmarks", () => {
     vi.setSystemTime(new Date("2026-09-11T08:00:00.000Z"));
     await create({ url: "https://example.com/1", is_archived: true });
     vi.setSystemTime(new Date("2026-09-11T10:00:00.000Z"));
-    await create({ url: "https://example.com/2" });
+    const second = await create({ url: "https://example.com/2" });
     vi.setSystemTime(new Date("2026-09-11T12:00:00.000Z"));
     await create({ url: "https://example.com/3" });
+    // /2 is modified after /3 was added, so the two date filters can be told apart.
+    vi.setSystemTime(new Date("2026-09-11T14:00:00.000Z"));
+    expect((await api(token).patch(`/api/bookmarks/${second.id}/`, { notes: "n" })).status).toBe(200);
   });
 
   const urls = (body: Json) => (body.results as Json[]).map((bookmark) => bookmark.url);
@@ -262,9 +265,9 @@ describe("List bookmarks", () => {
   });
 
   it("filters by modified_since", async () => {
-    const body = await (await api(token).get("/api/bookmarks/?modified_since=2026-09-11T11:00:00Z")).json<Json>();
+    const body = await (await api(token).get("/api/bookmarks/?modified_since=2026-09-11T13:00:00Z")).json<Json>();
 
-    expect(urls(body)).toEqual(["https://example.com/3"]);
+    expect(urls(body)).toEqual(["https://example.com/2"]);
   });
 
   it("filters by added_since", async () => {
