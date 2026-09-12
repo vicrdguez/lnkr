@@ -75,5 +75,6 @@ auth.post("/logout", async (c) => {
 /** `next` when it is a path on this origin, otherwise `/`. */
 function sameOriginPath(next: string | undefined, requestUrl: string): string {
   if (!next?.startsWith("/")) return "/";
+  // DEBT(#23/W2): control characters in next survive to c.redirect, which throws after the session is started (500).
   return new URL(next, requestUrl).origin === new URL(requestUrl).origin ? next : "/";
 }

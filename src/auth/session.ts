@@ -21,6 +21,7 @@ export const requireSession: MiddlewareHandler<AppEnv> = async (c, next) => {
   const { pathname, search } = new URL(c.req.url);
   if (PUBLIC_PATHS.has(pathname) || pathname.startsWith("/static/")) return next();
   const user = sessionUser(c);
+  // DEBT(#23/W1): next is remembered for POSTs too, so a stale Log out click lands on GET /logout (404) after login.
   if (!user) return c.redirect(`/login?next=${encodeURIComponent(pathname + search)}`);
   c.set("user", user);
   await next();
@@ -28,6 +29,7 @@ export const requireSession: MiddlewareHandler<AppEnv> = async (c, next) => {
 
 /** Writes a session row and the `sessionid` cookie for `userId`. */
 export async function startSession(c: Context<AppEnv>, userId: number): Promise<void> {
+  // DEBT(#23/W4): a negative value passes through (dead session, no Max-Age); above 34560000 setCookie throws and login answers 500.
   const maxAge = Number(c.env.LD_SESSION_COOKIE_AGE) || DEFAULT_COOKIE_AGE;
   const expiresAt = new Date(Date.now() + maxAge * 1000).toISOString();
   const id = createSession(c.get("sql"), userId, expiresAt);

@@ -38,6 +38,7 @@ export function isLoginLocked(sql: SqlStorage, username: string, now: string): b
   return !!row && row.failures >= MAX_LOGIN_FAILURES && row.window_start > windowStart(now);
 }
 
+// DEBT(#23/W3): rows for never-seen usernames, and expired sessions whose cookie never returns, are never purged.
 /** Counts one failure, opening a new window when none is current. */
 export function recordLoginFailure(sql: SqlStorage, username: string, now: string): void {
   const row = loginAttempts(sql, username);
