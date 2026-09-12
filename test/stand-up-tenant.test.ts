@@ -2,7 +2,7 @@ import { runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import { migrations, runMigrations } from "../src/db/schema";
-import { get } from "./helpers";
+import { cookieOf, formPost, get, location, PASSWORD, USERNAME } from "./helpers";
 
 describe("Health", () => {
   it("is public", async () => {
@@ -29,5 +29,39 @@ describe("Schema migrations", () => {
     });
 
     expect(versions).toEqual(migrations.map((_, index) => index + 1));
+  });
+});
+
+describe("First-run setup", () => {
+  it("offers the setup form on a fresh Instance", async () => {
+    const response = await get("/setup");
+
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain('name="username"');
+    expect(html).toContain('name="password"');
+  });
+
+  it("creates the user and starts a session", async () => {
+    const response = await formPost("/setup", { username: USERNAME, password: PASSWORD });
+
+    expect(response.status).toBe(302);
+    expect(location(response).pathname).toBe("/");
+    const cookie = cookieOf(response);
+    expect(cookie).toBeTruthy();
+    expect((await get("/settings", cookie)).status).toBe(200);
+  });
+
+  it.each([
+    ["", "secret"],
+    ["vic", ""],
+  ])("rejects missing fields (username %j, password %j)", async (username, password) => {
+    const response = await formPost("/setup", { username, password });
+
+    expect(response.status).toBe(400);
+    const html = await response.text();
+    expect(html).toContain('name="username"');
+    expect(html).toContain('role="alert"');
+    expect((await get("/setup")).status).toBe(200);
   });
 });
