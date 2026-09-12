@@ -243,3 +243,38 @@ describe("Login attempt limiter", () => {
     expect(cookieOf(response)).toBeTruthy();
   });
 });
+
+describe("Change password", () => {
+  const NEW_PASSWORD = "new pass phrase";
+  let cookie: string;
+
+  beforeEach(async () => {
+    cookie = await setupTenant();
+  });
+
+  it("changes with the current password", async () => {
+    const response = await formPost(
+      "/settings/password",
+      { current: PASSWORD, password: NEW_PASSWORD, confirm: NEW_PASSWORD },
+      { cookie },
+    );
+
+    expect(response.status).toBe(302);
+    expect(location(response).pathname).toBe("/settings");
+    expect(cookieOf(await login(USERNAME, NEW_PASSWORD))).toBeTruthy();
+    expect((await login(USERNAME, PASSWORD)).status).toBe(401);
+  });
+
+  it.each([
+    ["wrong current password", { current: "wrong", password: NEW_PASSWORD, confirm: NEW_PASSWORD }],
+    ["mismatched confirmation", { current: PASSWORD, password: NEW_PASSWORD, confirm: "other" }],
+  ])("rejects a %s", async (_case, fields) => {
+    const response = await formPost("/settings/password", fields, { cookie });
+
+    expect(response.status).toBe(400);
+    const html = await response.text();
+    expect(html).toContain('name="current"');
+    expect(html).toContain('role="alert"');
+    expect(cookieOf(await login(USERNAME, PASSWORD))).toBeTruthy();
+  });
+});
