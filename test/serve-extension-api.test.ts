@@ -170,6 +170,15 @@ describe("Create bookmarks", () => {
     expect(await response.json()).toMatchObject({ title: "Page P", description: "Desc P" });
   });
 
+  it("stores the page's title and description with character references decoded", async () => {
+    mockPage("https://example.com/refs", '<title>AT&amp;T</title><meta name="description" content="Q&amp;A &#39;quoted&#39;">');
+
+    const response = await api(token).post("/api/bookmarks/", { url: "https://example.com/refs" });
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({ title: "AT&T", description: "Q&A 'quoted'" });
+  });
+
   it("keeps provided fields over the page's", async () => {
     mockPage("https://example.com/p", "<title>Page P</title>");
 
@@ -385,6 +394,17 @@ describe("Check a URL", () => {
     const body = await (await api(token).get("/api/bookmarks/check/?url=https://example.com/og")).json<Json>();
 
     expect((body.metadata as Json).title).toBe("Real");
+  });
+
+  it("decodes named, decimal and hexadecimal character references", async () => {
+    mockPage(
+      "https://example.com/refs",
+      '<title>Foo &amp; Bar &lt;3 &#8211; &#x1F600;</title><meta name="description" content="A &quot;q&quot; &amp; B &eacute;">',
+    );
+
+    const body = await (await api(token).get("/api/bookmarks/check/?url=https://example.com/refs")).json<Json>();
+
+    expect(body.metadata).toEqual({ title: "Foo & Bar <3 – 😀", description: 'A "q" & B é' });
   });
 
   it("reads only the first title element", async () => {

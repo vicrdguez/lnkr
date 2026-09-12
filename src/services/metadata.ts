@@ -1,3 +1,4 @@
+import { decodeHTML, decodeHTMLAttribute } from "entities/decode";
 import pkg from "../../package.json";
 
 export type PageMetadata = { title: string | null; description: string | null };
@@ -14,10 +15,11 @@ export async function fetchPageMetadata(url: string): Promise<PageMetadata> {
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!response.ok || !response.headers.get("content-type")?.includes("text/html")) return NONE;
+    // HTMLRewriter hands over text and attributes with character references still encoded.
     const found = { title: "", ogTitle: "", description: "", ogDescription: "" };
     const content = (key: keyof typeof found) => ({
       element: (element: Element) => {
-        found[key] = element.getAttribute("content") ?? "";
+        found[key] = decodeHTMLAttribute(element.getAttribute("content") ?? "");
       },
     });
     // Only the first <title> is the page's; later ones belong to inline SVGs.
@@ -38,7 +40,7 @@ export async function fetchPageMetadata(url: string): Promise<PageMetadata> {
     await drain(page.body, MAX_BYTES);
     const clean = (text: string) => text.replace(/\s+/g, " ").trim() || null;
     return {
-      title: clean(found.title) ?? clean(found.ogTitle),
+      title: clean(decodeHTML(found.title)) ?? clean(found.ogTitle),
       description: clean(found.description) ?? clean(found.ogDescription),
     };
   } catch {
