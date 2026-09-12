@@ -15,11 +15,10 @@ export async function fetchPageMetadata(url: string): Promise<PageMetadata> {
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!response.ok || !response.headers.get("content-type")?.includes("text/html")) return NONE;
-    // HTMLRewriter hands over text and attributes with character references still encoded.
     const found = { title: "", ogTitle: "", description: "", ogDescription: "" };
     const content = (key: keyof typeof found) => ({
       element: (element: Element) => {
-        found[key] = decodeHTMLAttribute(element.getAttribute("content") ?? "");
+        found[key] = element.getAttribute("content") ?? "";
       },
     });
     // Only the first <title> is the page's; later ones belong to inline SVGs.
@@ -38,10 +37,13 @@ export async function fetchPageMetadata(url: string): Promise<PageMetadata> {
       .on('meta[property="og:description"]', content("ogDescription"))
       .transform(response);
     await drain(page.body, MAX_BYTES);
+    // HTMLRewriter hands over text and attributes with character references still encoded,
+    // possibly split across text chunks, so everything is decoded here once the page is read.
     const clean = (text: string) => text.replace(/\s+/g, " ").trim() || null;
+    const attribute = (text: string) => clean(decodeHTMLAttribute(text));
     return {
-      title: clean(decodeHTML(found.title)) ?? clean(found.ogTitle),
-      description: clean(found.description) ?? clean(found.ogDescription),
+      title: clean(decodeHTML(found.title)) ?? attribute(found.ogTitle),
+      description: attribute(found.description) ?? attribute(found.ogDescription),
     };
   } catch {
     return NONE;

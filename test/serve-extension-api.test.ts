@@ -171,7 +171,10 @@ describe("Create bookmarks", () => {
   });
 
   it("stores the page's title and description with character references decoded", async () => {
-    mockPage("https://example.com/refs", '<title>AT&amp;T</title><meta name="description" content="Q&amp;A &#39;quoted&#39;">');
+    mockPage(
+      "https://example.com/refs",
+      '<meta property="og:title" content="AT&amp;T"><meta property="og:description" content="Q&amp;A &#39;quoted&#39;">',
+    );
 
     const response = await api(token).post("/api/bookmarks/", { url: "https://example.com/refs" });
 
@@ -221,19 +224,24 @@ describe("Create bookmarks", () => {
 });
 
 describe("List bookmarks", () => {
+  let second: Json;
+
   beforeEach(async () => {
     vi.setSystemTime(new Date("2026-09-11T08:00:00.000Z"));
     await create({ url: "https://example.com/1", is_archived: true });
     vi.setSystemTime(new Date("2026-09-11T10:00:00.000Z"));
-    const second = await create({ url: "https://example.com/2" });
+    second = await create({ url: "https://example.com/2" });
     vi.setSystemTime(new Date("2026-09-11T12:00:00.000Z"));
     await create({ url: "https://example.com/3" });
-    // /2 is modified after /3 was added, so the two date filters can be told apart.
-    vi.setSystemTime(new Date("2026-09-11T14:00:00.000Z"));
-    expect((await api(token).patch(`/api/bookmarks/${second.id}/`, { notes: "n" })).status).toBe(200);
   });
 
   const urls = (body: Json) => (body.results as Json[]).map((bookmark) => bookmark.url);
+
+  /** Modifies /2 after /3 was added, so its modification time no longer equals its creation time. */
+  async function modifySecondLater(): Promise<void> {
+    vi.setSystemTime(new Date("2026-09-11T14:00:00.000Z"));
+    expect((await api(token).patch(`/api/bookmarks/${second.id}/`, { notes: "n" })).status).toBe(200);
+  }
 
   it("excludes archived bookmarks and orders newest first", async () => {
     const body = await (await api(token).get("/api/bookmarks/")).json<Json>();
@@ -265,15 +273,23 @@ describe("List bookmarks", () => {
   });
 
   it("filters by modified_since", async () => {
-    const body = await (await api(token).get("/api/bookmarks/?modified_since=2026-09-11T13:00:00Z")).json<Json>();
+    const body = await (await api(token).get("/api/bookmarks/?modified_since=2026-09-11T11:00:00Z")).json<Json>();
+    expect(urls(body)).toEqual(["https://example.com/3"]);
 
-    expect(urls(body)).toEqual(["https://example.com/2"]);
+    await modifySecondLater();
+
+    const later = await (await api(token).get("/api/bookmarks/?modified_since=2026-09-11T13:00:00Z")).json<Json>();
+    expect(urls(later)).toEqual(["https://example.com/2"]);
   });
 
   it("filters by added_since", async () => {
     const body = await (await api(token).get("/api/bookmarks/?added_since=2026-09-11T11:00:00Z")).json<Json>();
-
     expect(urls(body)).toEqual(["https://example.com/3"]);
+
+    await modifySecondLater();
+
+    const later = await (await api(token).get("/api/bookmarks/?added_since=2026-09-11T11:00:00Z")).json<Json>();
+    expect(urls(later)).toEqual(["https://example.com/3"]);
   });
 });
 
@@ -399,15 +415,17 @@ describe("Check a URL", () => {
     expect((body.metadata as Json).title).toBe("Real");
   });
 
-  it("decodes named, decimal and hexadecimal character references", async () => {
+  it("decodes named, decimal and hexadecimal character references as a browser would", async () => {
+    // &copy2024 is a legacy reference in text but not in an attribute; &#150; is a C1 code remapped by HTML.
     mockPage(
       "https://example.com/refs",
-      '<title>Foo &amp; Bar &lt;3 &#8211; &#x1F600;</title><meta name="description" content="A &quot;q&quot; &amp; B &eacute;">',
+      '<title>Foo &amp; Bar &lt;3 &#8211; &#x1F600; &copy2024</title>' +
+        '<meta name="description" content="A &quot;q&quot; &amp; B &eacute; &#150; ?x=1&copy=2">',
     );
 
     const body = await (await api(token).get("/api/bookmarks/check/?url=https://example.com/refs")).json<Json>();
 
-    expect(body.metadata).toEqual({ title: "Foo & Bar <3 – 😀", description: 'A "q" & B é' });
+    expect(body.metadata).toEqual({ title: "Foo & Bar <3 – 😀 ©2024", description: 'A "q" & B é – ?x=1&copy=2' });
   });
 
   it("reads only the first title element", async () => {
