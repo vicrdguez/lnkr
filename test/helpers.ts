@@ -48,6 +48,14 @@ export function setCookieOf(response: Response): string | undefined {
   return response.headers.getSetCookie().find((line) => line.startsWith("sessionid="));
 }
 
+/** Lower-cased attributes of the `sessionid` Set-Cookie line, e.g. `["max-age=0", "path=/"]`. */
+export function cookieAttributes(response: Response): string[] {
+  return (setCookieOf(response) ?? "")
+    .split(";")
+    .slice(1)
+    .map((attribute) => attribute.trim().toLowerCase());
+}
+
 /** The `sessionid` value from Set-Cookie, or undefined when none was sent. */
 export function cookieOf(response: Response): string | undefined {
   return setCookieOf(response)?.split(";")[0].slice("sessionid=".length) || undefined;

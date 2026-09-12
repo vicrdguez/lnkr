@@ -1,8 +1,19 @@
 import { runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { migrations, runMigrations } from "../src/db/schema";
-import { cookieOf, formPost, get, location, PASSWORD, USERNAME } from "./helpers";
+import {
+  BASE,
+  cookieAttributes,
+  cookieOf,
+  formPost,
+  get,
+  location,
+  login,
+  PASSWORD,
+  setupTenant,
+  USERNAME,
+} from "./helpers";
 
 describe("Health", () => {
   it("is public", async () => {
@@ -63,5 +74,126 @@ describe("First-run setup", () => {
     expect(html).toContain('name="username"');
     expect(html).toContain('role="alert"');
     expect((await get("/setup")).status).toBe(200);
+  });
+});
+
+describe("First-run setup, once a user exists", () => {
+  it.each(["GET", "POST"])("is closed (%s)", async (method) => {
+    await setupTenant();
+
+    const response =
+      method === "GET" ? await get("/setup") : await formPost("/setup", { username: "eve", password: "secret" });
+
+    expect(response.status).toBe(302);
+    expect(location(response).pathname).toBe("/login");
+    expect((await login("eve", "secret")).status).toBe(401);
+    expect((await login(USERNAME, PASSWORD)).status).toBe(302);
+  });
+});
+
+describe("Password login", () => {
+  beforeEach(async () => {
+    await setupTenant();
+  });
+
+  it("redirects a protected page to login", async () => {
+    const response = await get("/settings");
+
+    expect(response.status).toBe(302);
+    expect(location(response).pathname).toBe("/login");
+    expect(location(response).searchParams.get("next")).toBe("/settings");
+  });
+
+  it("starts a session with correct credentials", async () => {
+    const response = await login(USERNAME, PASSWORD);
+
+    expect(response.status).toBe(302);
+    expect(location(response).pathname).toBe("/");
+    expect(cookieAttributes(response)).toEqual(
+      expect.arrayContaining(["httponly", "samesite=lax", "path=/", "max-age=1209600"]),
+    );
+    expect((await get("/settings", cookieOf(response))).status).toBe(200);
+  });
+
+  it.each([
+    ["https", true],
+    ["http", false],
+  ])("sets the Secure flag by request scheme (%s)", async (scheme, secure) => {
+    const response = await login(USERNAME, PASSWORD, { base: `${scheme}://lnkr.test` });
+
+    expect(cookieAttributes(response).includes("secure")).toBe(secure);
+  });
+
+  it("honours a same-origin next path", async () => {
+    const response = await formPost("/login?next=/settings", { username: USERNAME, password: PASSWORD });
+
+    expect(response.status).toBe(302);
+    expect(location(response).href).toBe(`${BASE}/settings`);
+  });
+
+  it("ignores a next pointing at another origin", async () => {
+    const response = await formPost("/login?next=https://evil.example/", { username: USERNAME, password: PASSWORD });
+
+    expect(response.status).toBe(302);
+    expect(location(response).href).toBe(`${BASE}/`);
+  });
+
+  it.each([
+    [USERNAME, "wrong"],
+    ["nobody", PASSWORD],
+  ])("refuses wrong credentials (%s / %s)", async (username, password) => {
+    const response = await login(username, password);
+
+    expect(response.status).toBe(401);
+    const html = await response.text();
+    expect(html).toContain("Invalid username or password");
+    expect(html).toContain('name="username"');
+    expect(response.headers.getSetCookie()).toEqual([]);
+  });
+
+  it("redirects root by session", async () => {
+    const cookie = cookieOf(await login(USERNAME, PASSWORD));
+
+    const loggedIn = await get("/", cookie);
+    expect(loggedIn.status).toBe(302);
+    expect(location(loggedIn).href).toBe(`${BASE}/settings`);
+
+    const anonymous = await get("/");
+    expect(anonymous.status).toBe(302);
+    expect(location(anonymous).href).toBe(`${BASE}/login`);
+  });
+});
+
+describe("Session lifecycle", () => {
+  let cookie: string;
+
+  beforeEach(async () => {
+    cookie = await setupTenant();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("ends the session on logout", async () => {
+    const response = await formPost("/logout", {}, { cookie });
+
+    expect(response.status).toBe(302);
+    expect(location(response).pathname).toBe("/login");
+    expect(cookieAttributes(response)).toContain("max-age=0");
+
+    const afterwards = await get("/settings", cookie);
+    expect(afterwards.status).toBe(302);
+    expect(location(afterwards).searchParams.get("next")).toBe("/settings");
+  });
+
+  it("rejects an expired session", async () => {
+    vi.setSystemTime(Date.now() + 15 * 24 * 60 * 60 * 1000);
+
+    const response = await get("/settings", cookie);
+
+    expect(response.status).toBe(302);
+    expect(location(response).pathname).toBe("/login");
+    expect(location(response).searchParams.get("next")).toBe("/settings");
   });
 });
