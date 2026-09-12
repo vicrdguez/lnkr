@@ -32,20 +32,20 @@ Token authentication, the linkding-compatible endpoints for bookmarks, tags and 
 - URL normalisation beyond trimming whitespace; duplicates are exact URL matches
 
 ## Definition of Done
-- [ ] The settings page shows an API token, creates one when none exists, and Regenerate replaces it so the old token stops working.
-- [ ] A request to `/api/` without a token answers 401 `{"detail": "Authentication credentials were not provided."}`; with an unknown token 401 `{"detail": "Invalid token."}`; with a session cookie only, 401.
-- [ ] Creating a Bookmark returns 201 with linkding's fields, ISO 8601 UTC timestamps, and creates missing tags.
-- [ ] Creating with a URL that already exists updates that Bookmark and returns 201 with the same `id`.
-- [ ] Creating with empty title and description fills them from the page unless `disable_scraping` is given; a page that cannot be fetched leaves them empty.
-- [ ] An invalid URL answers 400 `{"url": ["Enter a valid URL."]}` and creates nothing.
-- [ ] The active list excludes archived bookmarks and the archived list contains only them; both order newest first, honour `limit` and `offset`, and return `count`, `next` and `previous` as absolute URLs or null.
-- [ ] `modified_since` and `added_since` keep only bookmarks at or after the given time.
-- [ ] `PUT` replaces every writable field, resetting omitted ones to defaults; `PATCH` changes only the given fields; both bump `date_modified`; changing the URL to another Bookmark's URL answers 400.
-- [ ] `DELETE`, `archive` and `unarchive` answer 204 and take effect; unknown ids answer 404 `{"detail": "Not found."}`.
-- [ ] `check` returns the existing Bookmark or null, the page's title and description, and an empty `auto_tags`.
-- [ ] Tags list, create, get and delete work; creating an existing name returns the existing tag; deleting a tag removes it from its bookmarks.
-- [ ] `user/profile` returns linkding's fields with `enable_sharing` false and a `version`.
-- [ ] The official linkding browser extension saves, checks and tags a page against `wrangler dev`.
+- [x] The settings page shows an API token, creates one when none exists, and Regenerate replaces it so the old token stops working.
+- [x] A request to `/api/` without a token answers 401 `{"detail": "Authentication credentials were not provided."}`; with an unknown token 401 `{"detail": "Invalid token."}`; with a session cookie only, 401.
+- [x] Creating a Bookmark returns 201 with linkding's fields, ISO 8601 UTC timestamps, and creates missing tags.
+- [x] Creating with a URL that already exists updates that Bookmark and returns 201 with the same `id`.
+- [x] Creating with empty title and description fills them from the page unless `disable_scraping` is given; a page that cannot be fetched leaves them empty.
+- [x] An invalid URL answers 400 `{"url": ["Enter a valid URL."]}` and creates nothing.
+- [x] The active list excludes archived bookmarks and the archived list contains only them; both order newest first, honour `limit` and `offset`, and return `count`, `next` and `previous` as absolute URLs or null.
+- [x] `modified_since` and `added_since` keep only bookmarks at or after the given time.
+- [x] `PUT` replaces every writable field, resetting omitted ones to defaults; `PATCH` changes only the given fields; both bump `date_modified`; changing the URL to another Bookmark's URL answers 400.
+- [x] `DELETE`, `archive` and `unarchive` answer 204 and take effect; unknown ids answer 404 `{"detail": "Not found."}`.
+- [x] `check` returns the existing Bookmark or null, the page's title and description, and an empty `auto_tags`.
+- [x] Tags list, create, get and delete work; creating an existing name returns the existing tag; deleting a tag removes it from its bookmarks.
+- [x] `user/profile` returns linkding's fields with `enable_sharing` false and a `version`.
+- [x] The official linkding browser extension saves, checks and tags a page against `wrangler dev`.
 
 ## Manual verification
 - [ ] Install the linkding extension, point it at the dev URL with the token, save the current tab with tags, reopen the popup and see it prefilled, delete from the popup.
