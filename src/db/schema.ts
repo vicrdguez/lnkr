@@ -18,6 +18,35 @@ export const migrations: string[] = [
     failures INTEGER NOT NULL,
     window_start TEXT NOT NULL
   );`,
+  `CREATE TABLE bookmarks (
+    id INTEGER PRIMARY KEY,
+    url TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT '',
+    unread INTEGER NOT NULL DEFAULT 0,
+    is_archived INTEGER NOT NULL DEFAULT 0,
+    shared INTEGER NOT NULL DEFAULT 0,
+    date_added TEXT NOT NULL,
+    date_modified TEXT NOT NULL
+  );
+  CREATE INDEX bookmarks_list ON bookmarks(is_archived, date_added DESC);
+  CREATE TABLE tags (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    date_added TEXT NOT NULL
+  );
+  CREATE TABLE bookmark_tags (
+    bookmark_id INTEGER NOT NULL REFERENCES bookmarks(id),
+    tag_id INTEGER NOT NULL REFERENCES tags(id),
+    PRIMARY KEY (bookmark_id, tag_id)
+  );
+  CREATE INDEX bookmark_tags_tag ON bookmark_tags(tag_id);
+  CREATE TABLE api_tokens (
+    key TEXT PRIMARY KEY,
+    name TEXT NOT NULL DEFAULT '',
+    created TEXT NOT NULL
+  );`,
 ];
 
 /** Applies every pending migration; safe to run again. */
