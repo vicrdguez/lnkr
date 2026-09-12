@@ -52,28 +52,30 @@ export function getBookmark(sql: SqlStorage, id: number): BookmarkRow | null {
   return sql.exec<BookmarkRow>("SELECT * FROM bookmarks WHERE id = ?", id).toArray()[0] ?? null;
 }
 
-export function insertBookmark(sql: SqlStorage, f: BookmarkFields, now: string): BookmarkRow {
+export function insertBookmark(sql: SqlStorage, fields: BookmarkFields, now: string): BookmarkRow {
+  const { url, title, description, notes, unread, is_archived, shared } = fields;
   return sql
     .exec<BookmarkRow>(
       `INSERT INTO bookmarks (url, title, description, notes, unread, is_archived, shared, date_added, date_modified)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
-      f.url, f.title, f.description, f.notes, +f.unread, +f.is_archived, +f.shared, now, now,
+      url, title, description, notes, +unread, +is_archived, +shared, now, now,
     )
     .one();
 }
 
 /** Replaces every writable field and bumps `date_modified`. */
-export function updateBookmark(sql: SqlStorage, id: number, f: BookmarkFields, now: string): BookmarkRow {
+export function updateBookmark(sql: SqlStorage, id: number, fields: BookmarkFields, now: string): BookmarkRow {
+  const { url, title, description, notes, unread, is_archived, shared } = fields;
   return sql
     .exec<BookmarkRow>(
       `UPDATE bookmarks SET url = ?, title = ?, description = ?, notes = ?, unread = ?, is_archived = ?, shared = ?,
        date_modified = ? WHERE id = ? RETURNING *`,
-      f.url, f.title, f.description, f.notes, +f.unread, +f.is_archived, +f.shared, now, id,
+      url, title, description, notes, +unread, +is_archived, +shared, now, id,
     )
     .one();
 }
 
-/** Removes the bookmark and its tag attachments; false when no such bookmark. */
+/** Deletes the bookmark and its tag attachments; false when no such bookmark. */
 export function deleteBookmark(sql: SqlStorage, id: number): boolean {
   sql.exec("DELETE FROM bookmark_tags WHERE bookmark_id = ?", id);
   return sql.exec("DELETE FROM bookmarks WHERE id = ?", id).rowsWritten > 0;
@@ -107,16 +109,16 @@ export function tagNamesOf(sql: SqlStorage, id: number): string[] {
 export type ListOptions = { archived: boolean; limit: number; offset: number; modifiedSince?: string; addedSince?: string };
 
 /** One page of bookmarks newest first, with the total matching the filters. */
-export function listBookmarks(sql: SqlStorage, o: ListOptions): { count: number; rows: BookmarkRow[] } {
+export function listBookmarks(sql: SqlStorage, options: ListOptions): { count: number; rows: BookmarkRow[] } {
   // Absent date filters compare against "", which every ISO timestamp exceeds.
   const where = "WHERE is_archived = ? AND date_modified >= ? AND date_added >= ?";
-  const bindings = [+o.archived, o.modifiedSince ?? "", o.addedSince ?? ""];
+  const bindings = [+options.archived, options.modifiedSince ?? "", options.addedSince ?? ""];
   return {
     count: sql.exec<{ n: number }>(`SELECT count(*) AS n FROM bookmarks ${where}`, ...bindings).one().n,
     rows: sql
       .exec<BookmarkRow>(
         `SELECT * FROM bookmarks ${where} ORDER BY date_added DESC, id DESC LIMIT ? OFFSET ?`,
-        ...bindings, o.limit, o.offset,
+        ...bindings, options.limit, options.offset,
       )
       .toArray(),
   };

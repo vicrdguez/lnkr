@@ -7,9 +7,9 @@ import { intParam, invalid, jsonBody, notFound, parseError, tagJson } from "./se
 export const tags = new Hono<AppEnv>();
 
 tags.get("/tags", (c) => {
-  const { limit, offset } = pageParams(c);
-  const { count, rows } = listTags(c.get("sql"), limit, offset);
-  return c.json(paginate(c, count, rows.map(tagJson)));
+  const page = pageParams(c);
+  const { count, rows } = listTags(c.get("sql"), page.limit, page.offset);
+  return c.json(paginate(c, page, count, rows.map(tagJson)));
 });
 
 tags.post("/tags", async (c) => {

@@ -28,7 +28,12 @@ export function deleteTag(sql: SqlStorage, id: number): boolean {
 /** Trimmed, non-empty, deduplicated regardless of case keeping the first spelling. */
 export function normalizeTagNames(names: string[]): string[] {
   const seen = new Set<string>();
-  return names
-    .map((name) => name.trim())
-    .filter((name) => name && !seen.has(name.toLowerCase()) && seen.add(name.toLowerCase()));
+  const result: string[] = [];
+  for (const raw of names) {
+    const name = raw.trim();
+    if (!name || seen.has(name.toLowerCase())) continue;
+    seen.add(name.toLowerCase());
+    result.push(name);
+  }
+  return result;
 }

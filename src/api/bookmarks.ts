@@ -19,13 +19,13 @@ import { bookmarkJson, type FieldErrors, intParam, invalid, jsonBody, notFound, 
 
 /** The writable fields a request body supplied. */
 type Provided = Partial<BookmarkFields> & { tag_names?: string[] };
-type Read = { fields: Provided; errors?: undefined } | { errors: FieldErrors; fields?: undefined };
+type FieldsResult = { fields: Provided; errors?: undefined } | { errors: FieldErrors; fields?: undefined };
 
 const STRING_FIELDS = ["url", "title", "description", "notes"] as const;
 const BOOLEAN_FIELDS = ["unread", "is_archived", "shared"] as const;
 
 /** Validates the writable fields present in `body`; `url` is required unless `urlOptional`. */
-function readFields(body: Record<string, unknown>, urlOptional = false): Read {
+function readFields(body: Record<string, unknown>, urlOptional = false): FieldsResult {
   const fields: Provided = {};
   const errors: FieldErrors = {};
   for (const key of STRING_FIELDS) {
@@ -68,14 +68,15 @@ export const bookmarks = new Hono<AppEnv>();
 
 const list = (archived: boolean) => (c: Context<AppEnv>) => {
   const sql = c.get("sql");
+  const page = pageParams(c);
   const { count, rows } = listBookmarks(sql, {
     archived,
-    ...pageParams(c),
+    ...page,
     modifiedSince: sinceParam(c, "modified_since"),
     addedSince: sinceParam(c, "added_since"),
   });
   // ponytail: one tag query per row; join and group when pages of 100 measurably drag.
-  return c.json(paginate(c, count, rows.map((row) => bookmarkJson(sql, row))));
+  return c.json(paginate(c, page, count, rows.map((row) => bookmarkJson(sql, row))));
 };
 bookmarks.get("/bookmarks", list(false));
 // Fixed paths come before the :id routes so they are never read as ids.
@@ -85,6 +86,7 @@ bookmarks.get("/bookmarks/archived", list(true));
 bookmarks.get("/bookmarks/check", async (c) => {
   const url = c.req.query("url")?.trim();
   if (!url) return invalid(c, { url: ["This field is required."] });
+  if (!isHttpUrl(url)) return invalid(c, { url: ["Enter a valid URL."] });
   const metadata = await fetchPageMetadata(url);
   const sql = c.get("sql");
   const existing = findBookmarkByUrl(sql, url);

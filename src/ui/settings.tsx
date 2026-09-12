@@ -1,6 +1,5 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
-import type { Context } from "hono";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { createToken, currentToken, deleteTokens } from "../db/tokens";
 import { updatePassword, type User } from "../db/users";

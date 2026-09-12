@@ -24,8 +24,12 @@ export async function fetchPageMetadata(url: string): Promise<PageMetadata> {
     let titles = 0;
     const page = new HTMLRewriter()
       .on("title", {
-        element: () => void titles++,
-        text: (chunk) => void (titles === 1 && (found.title += chunk.text)),
+        element: () => {
+          titles++;
+        },
+        text: (chunk) => {
+          if (titles === 1) found.title += chunk.text;
+        },
       })
       .on('meta[property="og:title"]', content("ogTitle"))
       .on('meta[name="description"]', content("description"))

@@ -298,10 +298,14 @@ describe("Read, update and delete a bookmark", () => {
   });
 
   it("changes only the given fields on PATCH", async () => {
+    vi.setSystemTime(Date.now() + 1000);
+
     const response = await api(token).patch(`/api/bookmarks/${created.id}/`, { notes: "n2" });
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ notes: "n2", title: "A", tag_names: ["x"], unread: true });
+    const body = await response.json<Json>();
+    expect(body).toMatchObject({ notes: "n2", title: "A", tag_names: ["x"], unread: true });
+    expect(body.date_modified as string > (created.date_modified as string)).toBe(true);
   });
 
   it("requires a url on PUT", async () => {
@@ -395,6 +399,13 @@ describe("Check a URL", () => {
     const response = await api(token).get("/api/bookmarks/check/");
 
     expect(response.status).toBe(400);
+  });
+
+  it("refuses a url that is not http or https", async () => {
+    const response = await api(token).get("/api/bookmarks/check/?url=javascript:alert(1)");
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ url: ["Enter a valid URL."] });
   });
 });
 
