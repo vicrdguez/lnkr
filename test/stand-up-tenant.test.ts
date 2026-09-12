@@ -278,3 +278,14 @@ describe("Change password", () => {
     expect(cookieOf(await login(USERNAME, PASSWORD))).toBeTruthy();
   });
 });
+
+describe("Cross-site form protection", () => {
+  it("refuses a form POST from another origin", async () => {
+    await setupTenant();
+
+    const response = await login(USERNAME, PASSWORD, { origin: "https://evil.example" });
+
+    expect(response.status).toBe(403);
+    expect(response.headers.getSetCookie()).toEqual([]);
+  });
+});
