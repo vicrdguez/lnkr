@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../app";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { endSession, requireSession, sessionUser, startSession } from "../auth/session";
+import { clearLoginFailures, isLoginLocked, recordLoginFailure } from "../db/sessions";
 import { countUsers, createUser, findUserByUsername } from "../db/users";
 import { ErrorMessage, Field, Layout } from "../views/layout";
 import { formFields } from "./form";
@@ -51,11 +52,17 @@ auth.post("/setup", async (c) => {
 auth.get("/login", (c) => c.html(<LoginPage />));
 
 auth.post("/login", async (c) => {
+  const sql = c.get("sql");
   const { username, password } = await formFields(c, "username", "password");
-  const user = findUserByUsername(c.get("sql"), username);
+  if (isLoginLocked(sql, username, new Date().toISOString())) {
+    return c.html(<LoginPage error="Too many attempts. Try again later." />, 429);
+  }
+  const user = findUserByUsername(sql, username);
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
+    recordLoginFailure(sql, username, new Date().toISOString());
     return c.html(<LoginPage error="Invalid username or password" />, 401);
   }
+  clearLoginFailures(sql, username);
   startSession(c, user.id);
   return c.redirect(sameOriginPath(c.req.query("next"), c.req.url));
 });

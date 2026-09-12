@@ -197,3 +197,49 @@ describe("Session lifecycle", () => {
     expect(location(response).searchParams.get("next")).toBe("/settings");
   });
 });
+
+describe("Login attempt limiter", () => {
+  beforeEach(async () => {
+    await setupTenant();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function failLogins(times: number) {
+    for (let i = 0; i < times; i++) expect((await login(USERNAME, "wrong")).status).toBe(401);
+  }
+
+  it("refuses the sixth attempt even with the right password", async () => {
+    await failLogins(5);
+
+    const response = await login(USERNAME, PASSWORD);
+
+    expect(response.status).toBe(429);
+    expect(await response.text()).toContain("Too many attempts. Try again later.");
+    expect(response.headers.getSetCookie()).toEqual([]);
+  });
+
+  it("lifts the lock when the window ends", async () => {
+    await failLogins(5);
+    vi.setSystemTime(Date.now() + 16 * 60 * 1000);
+
+    const response = await login(USERNAME, PASSWORD);
+
+    expect(response.status).toBe(302);
+    expect(location(response).pathname).toBe("/");
+    expect(cookieOf(response)).toBeTruthy();
+  });
+
+  it("resets the count on a successful login", async () => {
+    await failLogins(4);
+    expect((await login(USERNAME, PASSWORD)).status).toBe(302);
+    await failLogins(4);
+
+    const response = await login(USERNAME, PASSWORD);
+
+    expect(response.status).toBe(302);
+    expect(cookieOf(response)).toBeTruthy();
+  });
+});

@@ -29,3 +29,43 @@ export function deleteSession(sql: SqlStorage, id: string): void {
 function base64url(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 }
+
+export const MAX_LOGIN_FAILURES = 5;
+export const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+
+type Attempts = { failures: number; window_start: string };
+
+/** True while `username` has reached the failure limit inside the current window. */
+export function isLoginLocked(sql: SqlStorage, username: string, now: string): boolean {
+  const row = loginAttempts(sql, username);
+  return !!row && row.failures >= MAX_LOGIN_FAILURES && row.window_start > windowStart(now);
+}
+
+/** Counts one failure, opening a new window when none is current. */
+export function recordLoginFailure(sql: SqlStorage, username: string, now: string): void {
+  const row = loginAttempts(sql, username);
+  if (row && row.window_start > windowStart(now)) {
+    sql.exec("UPDATE login_attempts SET failures = failures + 1 WHERE username = ?", username);
+  } else {
+    sql.exec(
+      "INSERT OR REPLACE INTO login_attempts (username, failures, window_start) VALUES (?, 1, ?)",
+      username,
+      now,
+    );
+  }
+}
+
+export function clearLoginFailures(sql: SqlStorage, username: string): void {
+  sql.exec("DELETE FROM login_attempts WHERE username = ?", username);
+}
+
+function loginAttempts(sql: SqlStorage, username: string): Attempts | undefined {
+  return sql
+    .exec<Attempts>("SELECT failures, window_start FROM login_attempts WHERE username = ?", username)
+    .toArray()[0];
+}
+
+/** Timestamp before which failures no longer count. */
+function windowStart(now: string): string {
+  return new Date(Date.parse(now) - LOGIN_WINDOW_MS).toISOString();
+}
