@@ -13,6 +13,7 @@ import {
   toFields,
   updateBookmark,
 } from "../db/bookmarks";
+import { compileSearch } from "../search";
 import { fetchPageMetadata } from "../services/metadata";
 import { pageParams, paginate } from "./envelope";
 import { bookmarkJson, type FieldErrors, intParam, invalid, jsonBody, notFound, parseError } from "./serialize";
@@ -69,9 +70,13 @@ export const bookmarks = new Hono<AppEnv>();
 const list = (archived: boolean) => (c: Context<AppEnv>) => {
   const sql = c.get("sql");
   const page = pageParams(c);
+  const search = compileSearch(c.req.query("q") ?? "");
+  // As in linkding, a query that does not parse finds nothing rather than failing.
+  if (!search) return c.json({ count: 0, next: null, previous: null, results: [] });
   const { count, rows } = listBookmarks(sql, {
     archived,
     ...page,
+    search,
     modifiedSince: sinceParam(c, "modified_since"),
     addedSince: sinceParam(c, "added_since"),
   });

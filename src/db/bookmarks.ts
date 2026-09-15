@@ -1,3 +1,4 @@
+import { MATCH_ALL, type SearchFilter } from "../search";
 import { ensureTag, normalizeTagNames } from "./tags";
 
 export type BookmarkRow = {
@@ -106,18 +107,26 @@ export function tagNamesOf(sql: SqlStorage, id: number): string[] {
     .map((row) => row.name);
 }
 
-export type ListOptions = { archived: boolean; limit: number; offset: number; modifiedSince?: string; addedSince?: string };
+export type ListOptions = {
+  archived: boolean;
+  limit: number;
+  offset: number;
+  modifiedSince?: string;
+  addedSince?: string;
+  search?: SearchFilter;
+};
 
 /** One page of bookmarks newest first, with the total matching the filters. */
 export function listBookmarks(sql: SqlStorage, options: ListOptions): { count: number; rows: BookmarkRow[] } {
+  const { where: matches, params } = options.search ?? MATCH_ALL;
   // Absent date filters compare against "", which every ISO timestamp exceeds.
-  const where = "WHERE is_archived = ? AND date_modified >= ? AND date_added >= ?";
-  const bindings = [+options.archived, options.modifiedSince ?? "", options.addedSince ?? ""];
+  const from = `FROM bookmarks b WHERE b.is_archived = ? AND ${matches} AND b.date_modified >= ? AND b.date_added >= ?`;
+  const bindings = [+options.archived, ...params, options.modifiedSince ?? "", options.addedSince ?? ""];
   return {
-    count: sql.exec<{ n: number }>(`SELECT count(*) AS n FROM bookmarks ${where}`, ...bindings).one().n,
+    count: sql.exec<{ n: number }>(`SELECT count(*) AS n ${from}`, ...bindings).one().n,
     rows: sql
       .exec<BookmarkRow>(
-        `SELECT * FROM bookmarks ${where} ORDER BY date_added DESC, id DESC LIMIT ? OFFSET ?`,
+        `SELECT b.* ${from} ORDER BY b.date_added DESC, b.id DESC LIMIT ? OFFSET ?`,
         ...bindings, options.limit, options.offset,
       )
       .toArray(),
