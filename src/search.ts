@@ -1,7 +1,9 @@
 /** A SQL boolean fragment over the `bookmarks` alias `b`, with its positional parameters in order. */
 export type SearchFilter = { where: string; params: string[] };
 
-const MATCH_ALL: SearchFilter = { where: "1 = 1", params: [] };
+export const MATCH_ALL: SearchFilter = { where: "1 = 1", params: [] };
+/** What a `q` that does not parse selects: nothing, as in linkding. */
+export const MATCH_NONE: SearchFilter = { where: "0 = 1", params: [] };
 
 /** Durable Object SQLite binds at most one hundred parameters; the list query needs a few of its own. */
 const PARAM_BUDGET = 90;

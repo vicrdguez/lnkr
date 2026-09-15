@@ -31,7 +31,7 @@ const LoginPage = ({ error }: { error?: string }) => (
 
 export const auth = new Hono<AppEnv>();
 
-auth.get("/", (c) => c.redirect(sessionUser(c) ? "/settings" : "/login"));
+auth.get("/", (c) => c.redirect(sessionUser(c) ? "/bookmarks" : "/login"));
 
 auth.get("/setup", (c) => (countUsers(c.get("sql")) ? c.redirect("/login") : c.html(<SetupPage />)));
 

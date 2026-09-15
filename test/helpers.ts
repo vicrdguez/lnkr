@@ -1,4 +1,5 @@
 import { exports } from "cloudflare:workers";
+import { decodeHTML, decodeHTMLAttribute } from "entities/decode";
 import { http, HttpResponse } from "msw";
 import { network } from "./network";
 
@@ -85,4 +86,28 @@ export function api(token?: string) {
 /** Serves `html` as `text/html` at `url` for the rest of the test. */
 export function mockPage(url: string, html: string): void {
   network.use(http.get(url, () => HttpResponse.html(html)));
+}
+
+export type Found = { attrs: Record<string, string>; text: string };
+
+/**
+ * Every element of `html` matching `selector`, in document order, with its attributes and the text of its whole
+ * subtree, both decoded. Matches of the same selector must not nest: an inner match would take the outer one's text.
+ */
+export async function select(html: string, selector: string): Promise<Found[]> {
+  const found: Found[] = [];
+  await new HTMLRewriter()
+    .on(selector, {
+      element(element) {
+        const attrs = [...element.attributes].map(([name, value]) => [name, decodeHTMLAttribute(value)]);
+        found.push({ attrs: Object.fromEntries(attrs), text: "" });
+      },
+      text(chunk) {
+        found[found.length - 1].text += chunk.text;
+      },
+    })
+    .transform(new Response(html))
+    .text();
+  // Character references can be split across chunks, so the text is decoded once it is whole.
+  return found.map((element) => ({ ...element, text: decodeHTML(element.text) }));
 }
