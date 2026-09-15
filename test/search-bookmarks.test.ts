@@ -122,6 +122,14 @@ describe("Search composes with the other list parameters", () => {
   it("applies added_since", async () => {
     expect(urls(await search("not zzz", { added_since: "2026-09-05T00:00:00Z" }))).toEqual([b3, b2]);
   });
+
+  it("applies modified_since", async () => {
+    vi.setSystemTime(new Date("2026-09-12T00:00:00.000Z"));
+    const [python] = (await search("python")).results as Json[];
+    expect((await api(token).patch(`/api/bookmarks/${python.id}/`, { notes: "n" })).status).toBe(200);
+
+    expect(urls(await search("not zzz", { modified_since: "2026-09-11T00:00:00Z" }))).toEqual([b1]);
+  });
 });
 
 describe("Term matching is a substring match on every text field", () => {

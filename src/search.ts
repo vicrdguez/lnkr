@@ -1,7 +1,7 @@
 /** A SQL boolean fragment over the `bookmarks` alias `b`, with its positional parameters in order. */
 export type SearchFilter = { where: string; params: string[] };
 
-export const MATCH_ALL: SearchFilter = { where: "1 = 1", params: [] };
+const MATCH_ALL: SearchFilter = { where: "1 = 1", params: [] };
 
 /** Durable Object SQLite binds at most one hundred parameters; the list query needs a few of its own. */
 const PARAM_BUDGET = 90;
@@ -11,6 +11,9 @@ const TEXT_COLUMNS = ["title", "description", "notes", "url"];
 type Leaf = { kind: "term" | "tag" | "keyword"; text: string };
 type Token = Leaf | { kind: "and" | "or" | "not" | "(" | ")" };
 type Node = Leaf | { kind: "not"; operand: Node } | { kind: "and" | "or"; left: Node; right: Node };
+
+/** Token kinds that begin an operand; a following one without an operator between is implicit `and`. */
+const OPERAND_START: string[] = ["not", "(", "term", "tag", "keyword"] satisfies Token["kind"][];
 
 class ParseError extends Error {}
 
@@ -78,7 +81,7 @@ function tokenize(q: string): Token[] {
 function parse(tokens: Token[]): Node {
   let i = 0;
   const peek = () => tokens[i]?.kind;
-  const startsOperand = () => ["not", "(", "term", "tag", "keyword"].includes(peek() ?? "");
+  const startsOperand = () => OPERAND_START.includes(peek() ?? "");
   const expr = (): Node => {
     let left = andExpr();
     while (peek() === "or") {
@@ -117,7 +120,8 @@ function compile(node: Node, params: string[]): string {
   switch (node.kind) {
     case "term":
       // SQLite's lower() folds ASCII only, so the bound text is folded the same way.
-      params.push(...TEXT_COLUMNS.map(() => node.text.replace(/[A-Z]+/g, (upper) => upper.toLowerCase())));
+      const folded = node.text.replace(/[A-Z]+/g, (upper) => upper.toLowerCase());
+      params.push(...TEXT_COLUMNS.map(() => folded));
       return `(${TEXT_COLUMNS.map((column) => `instr(lower(b.${column}), ?) > 0`).join(" OR ")})`;
     case "tag":
       params.push(node.text);

@@ -1,4 +1,4 @@
-import { MATCH_ALL, type SearchFilter } from "../search";
+import type { SearchFilter } from "../search";
 import { ensureTag, normalizeTagNames } from "./tags";
 
 export type BookmarkRow = {
@@ -118,15 +118,15 @@ export type ListOptions = {
 
 /** One page of bookmarks newest first, with the total matching the filters. */
 export function listBookmarks(sql: SqlStorage, options: ListOptions): { count: number; rows: BookmarkRow[] } {
-  const { where: matches, params } = options.search ?? MATCH_ALL;
+  const search = options.search ?? { where: "1 = 1", params: [] };
   // Absent date filters compare against "", which every ISO timestamp exceeds.
-  const from = `FROM bookmarks b WHERE b.is_archived = ? AND ${matches} AND b.date_modified >= ? AND b.date_added >= ?`;
-  const bindings = [+options.archived, ...params, options.modifiedSince ?? "", options.addedSince ?? ""];
+  const where = `WHERE b.is_archived = ? AND ${search.where} AND b.date_modified >= ? AND b.date_added >= ?`;
+  const bindings = [+options.archived, ...search.params, options.modifiedSince ?? "", options.addedSince ?? ""];
   return {
-    count: sql.exec<{ n: number }>(`SELECT count(*) AS n ${from}`, ...bindings).one().n,
+    count: sql.exec<{ n: number }>(`SELECT count(*) AS n FROM bookmarks b ${where}`, ...bindings).one().n,
     rows: sql
       .exec<BookmarkRow>(
-        `SELECT b.* ${from} ORDER BY b.date_added DESC, b.id DESC LIMIT ? OFFSET ?`,
+        `SELECT b.* FROM bookmarks b ${where} ORDER BY b.date_added DESC, b.id DESC LIMIT ? OFFSET ?`,
         ...bindings, options.limit, options.offset,
       )
       .toArray(),
