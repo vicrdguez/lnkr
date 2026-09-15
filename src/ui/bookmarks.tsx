@@ -1,25 +1,24 @@
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
-import { countBookmarks, listBookmarks, type ListSort, tagCounts, tagNamesFor } from "../db/bookmarks";
-import { compileSearch } from "../search";
+import { countBookmarks, LIST_SORTS, selectBookmarks, tagCounts, tagNamesFor } from "../db/bookmarks";
+import { compileSearch, MATCH_NONE } from "../search";
 import { BookmarkPage } from "../views/bookmark_list";
 
 export const ITEMS_PER_PAGE = 30;
-const SORTS: ListSort[] = ["added_desc", "added_asc", "title_asc", "title_desc"];
 
 const listPage = (archived: boolean) => (c: Context<AppEnv>) => {
   const sql = c.get("sql");
   const params = new URL(c.req.url).searchParams;
   const q = params.get("q") ?? "";
-  const sort = SORTS.find((name) => name === params.get("sort")) ?? "added_desc";
+  const sort = LIST_SORTS.find((name) => name === params.get("sort")) ?? "added_desc";
   const unread = params.get("unread") === "yes";
   // As in the API, a query that does not parse finds nothing rather than failing.
-  const filter = { archived, unread, search: compileSearch(q) ?? { where: "0 = 1", params: [] } };
+  const filter = { archived, unread, search: compileSearch(q) ?? MATCH_NONE };
   const count = countBookmarks(sql, filter);
   const pages = Math.max(Math.ceil(count / ITEMS_PER_PAGE), 1);
   // A page past the end shows the last page.
   const page = Math.min(Math.max(parseInt(params.get("page") ?? "", 10) || 1, 1), pages);
-  const { rows } = listBookmarks(sql, { ...filter, sort, limit: ITEMS_PER_PAGE, offset: (page - 1) * ITEMS_PER_PAGE });
+  const rows = selectBookmarks(sql, { ...filter, sort, limit: ITEMS_PER_PAGE, offset: (page - 1) * ITEMS_PER_PAGE });
   const names = tagNamesFor(sql, rows.map((row) => row.id));
   return c.html(
     <BookmarkPage

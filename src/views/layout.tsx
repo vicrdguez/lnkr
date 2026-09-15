@@ -4,6 +4,9 @@ import type { User } from "../db/users";
 
 export type Section = "bookmarks" | "archived" | "settings";
 
+/** The attributes marking the current choice among links: the `active` class and `aria-current`. */
+export const current = (on: boolean, value = "page") => (on ? { class: "active", "aria-current": value } : {});
+
 export const Layout: FC<PropsWithChildren<{ title: string; user?: User | null; section?: Section }>> = ({
   title,
   user,
@@ -25,13 +28,13 @@ export const Layout: FC<PropsWithChildren<{ title: string; user?: User | null; s
           <strong>lnkr</strong>
           {user && (
             <>
-              <a href="/bookmarks" class={section === "bookmarks" ? "active" : undefined}>
+              <a href="/bookmarks" {...current(section === "bookmarks")}>
                 Bookmarks
               </a>
-              <a href="/bookmarks/archived" class={section === "archived" ? "active" : undefined}>
+              <a href="/bookmarks/archived" {...current(section === "archived")}>
                 Archived
               </a>
-              <a href="/settings" class={section === "settings" ? "active" : undefined}>
+              <a href="/settings" {...current(section === "settings")}>
                 Settings
               </a>
               <form method="post" action="/logout">

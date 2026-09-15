@@ -80,13 +80,21 @@ describe("Bookmark list page", () => {
   });
 
   it("escapes content", async () => {
-    await create("https://example.com/x", { title: "<script>alert(1)</script>", notes: "<b>bold</b>" });
+    await create("https://example.com/x", {
+      title: "<script>alert(1)</script>",
+      notes: "<b>bold</b>",
+      description: "<i>desc</i>",
+      tag_names: ["<em>tag</em>"],
+    });
 
     const html = await page("/bookmarks");
 
     expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
     expect(html).toContain("&lt;b&gt;bold&lt;/b&gt;");
+    expect(html).toContain("&lt;i&gt;desc&lt;/i&gt;");
+    expect(html).toContain("#&lt;em&gt;tag&lt;/em&gt;");
     expect(html).not.toContain("<script>alert(1)</script>");
+    expect(html).not.toContain("<i>desc</i>");
   });
 
   it("links the date to the Web Archive", async () => {

@@ -1,4 +1,4 @@
-import type { SearchFilter } from "../search";
+import { MATCH_ALL, type SearchFilter } from "../search";
 import { ensureTag, normalizeTagNames } from "./tags";
 
 export type BookmarkRow = {
@@ -107,7 +107,15 @@ export function tagNamesOf(sql: SqlStorage, id: number): string[] {
     .map((row) => row.name);
 }
 
-export type ListSort = "added_desc" | "added_asc" | "title_asc" | "title_desc";
+const ORDER = {
+  added_desc: "b.date_added DESC, b.id DESC",
+  added_asc: "b.date_added ASC, b.id ASC",
+  title_asc: "b.title COLLATE NOCASE ASC, b.id ASC",
+  title_desc: "b.title COLLATE NOCASE DESC, b.id DESC",
+};
+export type ListSort = keyof typeof ORDER;
+/** Every sort name, the default `added_desc` first. */
+export const LIST_SORTS = Object.keys(ORDER) as ListSort[];
 
 export type ListFilter = {
   archived: boolean;
@@ -117,16 +125,9 @@ export type ListFilter = {
   addedSince?: string;
 };
 
-const ORDER: Record<ListSort, string> = {
-  added_desc: "b.date_added DESC, b.id DESC",
-  added_asc: "b.date_added ASC, b.id ASC",
-  title_asc: "b.title COLLATE NOCASE ASC, b.id ASC",
-  title_desc: "b.title COLLATE NOCASE DESC, b.id DESC",
-};
-
 /** The `WHERE` over the alias `b` for `filter`, shared by the list, its count and the tag sidebar so they never disagree. */
 function whereFor(filter: ListFilter): { where: string; params: (string | number)[] } {
-  const search = filter.search ?? { where: "1 = 1", params: [] };
+  const search = filter.search ?? MATCH_ALL;
   // Absent date filters compare against "", which every ISO timestamp exceeds.
   const conditions = ["b.is_archived = ?", search.where, "b.date_modified >= ?", "b.date_added >= ?"];
   if (filter.unread) conditions.push("b.unread = 1");
@@ -141,21 +142,22 @@ export function countBookmarks(sql: SqlStorage, filter: ListFilter): number {
   return sql.exec<{ n: number }>(`SELECT count(*) AS n FROM bookmarks b ${where}`, ...params).one().n;
 }
 
-/** One page of bookmarks, newest first unless `sort` says otherwise, with the total matching the filters. */
-export function listBookmarks(
-  sql: SqlStorage,
-  options: ListFilter & { limit: number; offset: number; sort?: ListSort },
-): { count: number; rows: BookmarkRow[] } {
+export type PageOptions = ListFilter & { limit: number; offset: number; sort?: ListSort };
+
+/** One page of bookmarks, newest first unless `sort` says otherwise. */
+export function selectBookmarks(sql: SqlStorage, options: PageOptions): BookmarkRow[] {
   const { where, params } = whereFor(options);
-  return {
-    count: countBookmarks(sql, options),
-    rows: sql
-      .exec<BookmarkRow>(
-        `SELECT b.* FROM bookmarks b ${where} ORDER BY ${ORDER[options.sort ?? "added_desc"]} LIMIT ? OFFSET ?`,
-        ...params, options.limit, options.offset,
-      )
-      .toArray(),
-  };
+  return sql
+    .exec<BookmarkRow>(
+      `SELECT b.* FROM bookmarks b ${where} ORDER BY ${ORDER[options.sort ?? "added_desc"]} LIMIT ? OFFSET ?`,
+      ...params, options.limit, options.offset,
+    )
+    .toArray();
+}
+
+/** One page of bookmarks with the total matching the filters. */
+export function listBookmarks(sql: SqlStorage, options: PageOptions): { count: number; rows: BookmarkRow[] } {
+  return { count: countBookmarks(sql, options), rows: selectBookmarks(sql, options) };
 }
 
 /** Every tag on a bookmark matching `filter` with how many of those bookmarks carry it, ordered by name regardless of case. */
@@ -173,11 +175,13 @@ export function tagCounts(sql: SqlStorage, filter: ListFilter): { name: string; 
 /** The tag names of each of `ids` in one query, ordered by name regardless of case; ids without tags are absent. */
 export function tagNamesFor(sql: SqlStorage, ids: number[]): Map<number, string[]> {
   const names = new Map<number, string[]>();
-  const rows = sql.exec<{ bookmark_id: number; name: string }>(
-    `SELECT bt.bookmark_id, t.name FROM bookmark_tags bt JOIN tags t ON t.id = bt.tag_id
-     WHERE bt.bookmark_id IN (SELECT value FROM json_each(?)) ORDER BY t.name COLLATE NOCASE`,
-    JSON.stringify(ids),
-  );
+  const rows = sql
+    .exec<{ bookmark_id: number; name: string }>(
+      `SELECT bt.bookmark_id, t.name FROM bookmark_tags bt JOIN tags t ON t.id = bt.tag_id
+       WHERE bt.bookmark_id IN (SELECT value FROM json_each(?)) ORDER BY t.name COLLATE NOCASE`,
+      JSON.stringify(ids),
+    )
+    .toArray();
   for (const row of rows) names.set(row.bookmark_id, [...(names.get(row.bookmark_id) ?? []), row.name]);
   return names;
 }

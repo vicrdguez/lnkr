@@ -25,6 +25,7 @@ export function tagsIn(q: string): string[] {
 export const withTag = (q: string, name: string): string => `${q.trim()} #${name}`.trim();
 
 /** `q` without its `#name` tokens in any case, each taken out with the whitespace before it. */
+// DEBT(#5/A5): the scan ignores boolean structure, so removing the only tag inside parentheses leaves `( or #b)`, which no longer parses.
 export function withoutTag(q: string, name: string): string {
   const wanted = name.toLowerCase();
   return q.replace(PHRASE_OR_TAG, (token, _space, tag?: string) => (tag?.toLowerCase() === wanted ? "" : token)).trim();
