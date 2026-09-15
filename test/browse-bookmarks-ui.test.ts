@@ -151,6 +151,43 @@ describe("Search, sort and filter", () => {
   });
 });
 
+describe("Pagination", () => {
+  beforeEach(async () => {
+    for (let n = 1; n <= 31; n++) await create(`https://example.com/b${n}`, { title: `B${String(n).padStart(2, "0")}` });
+  });
+
+  it("shows thirty on the first page and links to the next", async () => {
+    const html = await page("/bookmarks");
+
+    const found = await titles(html);
+    expect(found).toHaveLength(30);
+    expect(found[0]).toBe("B31");
+    expect(found[29]).toBe("B02");
+    expect(await link(html, "Next")).toBe("/bookmarks?page=2");
+    expect(await link(html, "Previous")).toBeUndefined();
+    expect(html).toContain("Page 1 of 2");
+  });
+
+  it("shows the rest on the second page and links back", async () => {
+    const html = await page("/bookmarks?page=2");
+
+    expect(await titles(html)).toEqual(["B01"]);
+    expect(await link(html, "Previous")).toBe("/bookmarks?page=1");
+    expect(await link(html, "Next")).toBeUndefined();
+  });
+
+  it("keeps the query in page links", async () => {
+    expect(await link(await page("/bookmarks?q=B&sort=added_asc"), "Next")).toBe("/bookmarks?q=B&sort=added_asc&page=2");
+  });
+
+  it("shows the last page when the page is out of range", async () => {
+    const html = await page("/bookmarks?page=9");
+
+    expect(await titles(html)).toEqual(["B01"]);
+    expect(html).toContain("Page 2 of 2");
+  });
+});
+
 describe("Navigation and access", () => {
   it("redirects root to the list", async () => {
     const response = await get("/", { cookie });

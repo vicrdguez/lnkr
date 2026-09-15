@@ -33,7 +33,7 @@ const SORTS: [ListSort, string][] = [
 ];
 
 export const BookmarkPage: FC<{ user: User } & Listing> = ({ user, archived, path, params, items, empty, now, ...rest }) => {
-  const { q, sort, unread } = rest;
+  const { q, sort, unread, page, pages } = rest;
   const link: Link = (changes) => pageUrl(path, params, changes);
   const active = (on: boolean) => (on ? "active" : undefined);
   return (
@@ -67,6 +67,13 @@ export const BookmarkPage: FC<{ user: User } & Listing> = ({ user, archived, pat
               <BookmarkItem row={row} tags={tags} link={link} now={now} />
             ))}
           </ul>
+          <nav class="pagination" aria-label="Pages">
+            {page > 1 && <a href={link({ page: String(page - 1) })}>Previous</a>}
+            <span>
+              Page {page} of {pages}
+            </span>
+            {page < pages && <a href={link({ page: String(page + 1) })}>Next</a>}
+          </nav>
         </section>
         <aside id="sidebar" />
       </div>
