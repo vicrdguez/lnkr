@@ -1,0 +1,2 @@
+# Copy to .dev.vars for `wrangler dev`. Overrides the defaults in wrangler.jsonc.
+LD_SESSION_COOKIE_AGE=1209600
