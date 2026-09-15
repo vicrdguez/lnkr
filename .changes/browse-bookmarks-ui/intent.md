@@ -26,16 +26,16 @@ The bookmark list at `/bookmarks` and the archive at `/bookmarks/archived`: a se
 - Keyboard shortcuts
 
 ## Definition of Done
-- [ ] `/bookmarks` lists active bookmarks newest first with title, description, tags, notes and date; `/bookmarks/archived` lists only archived ones.
-- [ ] `q` filters both pages with the query grammar and the search box keeps its value.
-- [ ] `sort` orders by date added or title in either direction, defaulting to newest first.
-- [ ] `unread=yes` keeps only unread bookmarks.
-- [ ] Thirty items per page; Previous and Next move between pages and the label shows the position; an out-of-range page shows the last page.
-- [ ] The sidebar lists the tags of the whole filtered result with counts, ordered by name; a tag link adds `#name` to `q`; a selected tag shows a link that removes it.
-- [ ] A bookmark's date links to `https://web.archive.org/web/<YYYYMMDDhhmmss>/<url>` derived from its `date_added`.
-- [ ] Titles, descriptions, notes and tag names are HTML-escaped; notes keep their line breaks.
-- [ ] `/` redirects to `/bookmarks` with a session and to `/login` without; both list pages redirect to `/login?next=` without a session.
-- [ ] The nav marks Bookmarks on the list page and Archived on the archive page.
+- [x] `/bookmarks` lists active bookmarks newest first with title, description, tags, notes and date; `/bookmarks/archived` lists only archived ones.
+- [x] `q` filters both pages with the query grammar and the search box keeps its value.
+- [x] `sort` orders by date added or title in either direction, defaulting to newest first.
+- [x] `unread=yes` keeps only unread bookmarks.
+- [x] Thirty items per page; Previous and Next move between pages and the label shows the position; an out-of-range page shows the last page.
+- [x] The sidebar lists the tags of the whole filtered result with counts, ordered by name; a tag link adds `#name` to `q`; a selected tag shows a link that removes it.
+- [x] A bookmark's date links to `https://web.archive.org/web/<YYYYMMDDhhmmss>/<url>` derived from its `date_added`.
+- [x] Titles, descriptions, notes and tag names are HTML-escaped; notes keep their line breaks.
+- [x] `/` redirects to `/bookmarks` with a session and to `/login` without; both list pages redirect to `/login?next=` without a session.
+- [x] The nav marks Bookmarks on the list page and Archived on the archive page.
 
 ## Manual verification
 - [ ] Open the list in a browser at `wrangler dev` with a few dozen bookmarks and check layout, wrapping of long titles and URLs, the sidebar and pagination on a narrow window.
