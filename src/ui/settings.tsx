@@ -7,7 +7,7 @@ import { ErrorMessage, Field, Layout } from "../views/layout";
 import { formFields } from "./form";
 
 const SettingsPage = ({ user, token, error }: { user: User; token: string; error?: string }) => (
-  <Layout title="Settings" user={user}>
+  <Layout title="Settings" user={user} section="settings">
     <ErrorMessage message={error} />
     <h2>API token</h2>
     <p>
