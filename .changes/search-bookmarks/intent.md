@@ -23,14 +23,14 @@ A query compiler that turns linkding's search grammar into a parameterised SQL f
 - Ranking; results stay ordered newest first
 
 ## Definition of Done
-- [ ] A bare term matches bookmarks whose title, description, notes or URL contains it regardless of letter case.
-- [ ] A quoted phrase matches as one substring including its spaces.
-- [ ] Adjacent terms, and terms joined with `and`, all have to match; `or` needs one side; `not` inverts; parentheses group; `not` binds tighter than `and`, which binds tighter than `or`.
-- [ ] `#name` matches bookmarks carrying that tag regardless of case, and a bare term never matches a tag name.
-- [ ] `!unread` keeps unread bookmarks, `!untagged` keeps bookmarks without tags, any other `!keyword` keeps everything.
-- [ ] A query that does not parse answers zero results and `count` 0 without an error status.
-- [ ] `q` applies to both list endpoints together with the archived split and the date filters, and pagination counts reflect the filtered set.
-- [ ] An empty `q` returns everything.
+- [x] A bare term matches bookmarks whose title, description, notes or URL contains it regardless of letter case.
+- [x] A quoted phrase matches as one substring including its spaces.
+- [x] Adjacent terms, and terms joined with `and`, all have to match; `or` needs one side; `not` inverts; parentheses group; `not` binds tighter than `and`, which binds tighter than `or`.
+- [x] `#name` matches bookmarks carrying that tag regardless of case, and a bare term never matches a tag name.
+- [x] `!unread` keeps unread bookmarks, `!untagged` keeps bookmarks without tags, any other `!keyword` keeps everything.
+- [x] A query that does not parse answers zero results and `count` 0 without an error status.
+- [x] `q` applies to both list endpoints together with the archived split and the date filters, and pagination counts reflect the filtered set.
+- [x] An empty `q` returns everything.
 
 ## Manual verification
 - [ ] Type the omnibox keyword followed by a query in the browser with the extension pointed at `wrangler dev` and see matching suggestions.
