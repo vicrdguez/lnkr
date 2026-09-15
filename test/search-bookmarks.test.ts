@@ -97,3 +97,43 @@ describe("Queries without a filter", () => {
     expect(urls(await search("  "))).toEqual([b3, b2, b1]);
   });
 });
+
+describe("Query grammar on the archived list", () => {
+  it("searches only archived bookmarks", async () => {
+    expect(urls(await search("python", {}, "/api/bookmarks/archived/"))).toEqual([b4]);
+  });
+
+  it("never returns archived matches on the active list", async () => {
+    expect((await search("old")).count).toBe(0);
+  });
+});
+
+describe("Search composes with the other list parameters", () => {
+  it("paginates the filtered set", async () => {
+    const body = await search("not zzz", { limit: "2" });
+
+    expect(body.count).toBe(3);
+    expect(body.results).toHaveLength(2);
+    const next = new URL(body.next as string);
+    expect(next.pathname).toBe("/api/bookmarks/");
+    expect(Object.fromEntries(next.searchParams)).toEqual({ q: "not zzz", limit: "2", offset: "2" });
+  });
+
+  it("applies added_since", async () => {
+    expect(urls(await search("not zzz", { added_since: "2026-09-05T00:00:00Z" }))).toEqual([b3, b2]);
+  });
+});
+
+describe("Term matching is a substring match on every text field", () => {
+  it.each<[string, string[], string]>([
+    ["Rust Book", [b2], "title"],
+    ["chapter 3", [b2], "notes"],
+    ["/cooking", [b3], "url"],
+  ])("%j matches through the %s", async (q, expected) => {
+    expect(urls(await search(q))).toEqual(expected);
+  });
+
+  // behavior.md expects `not code` to match b3 through its description, but the grammar it also specifies
+  // reads `not` as an operator, which excludes b3; awaiting the human decision recorded on the work item.
+  it.todo('"not code" matches through the description');
+});
