@@ -112,6 +112,45 @@ describe("Bookmark list page", () => {
   });
 });
 
+describe("Search, sort and filter", () => {
+  beforeEach(async () => {
+    await create("https://example.com/banana", { title: "Banana" });
+    await create("https://example.com/apple", { title: "apple", unread: true });
+    await create("https://example.com/cherry", { title: "Cherry" });
+  });
+
+  it("filters with q and keeps its value", async () => {
+    const html = await page("/bookmarks?q=an");
+
+    expect(await titles(html)).toEqual(["Banana"]);
+    const [input] = await select(html, 'form.search input[name="q"]');
+    expect(input.attrs.value).toBe("an");
+  });
+
+  it.each<[string, string[]]>([
+    ["added_desc", ["Cherry", "apple", "Banana"]],
+    ["added_asc", ["Banana", "apple", "Cherry"]],
+    ["title_asc", ["apple", "Banana", "Cherry"]],
+    ["title_desc", ["Cherry", "Banana", "apple"]],
+    ["bogus", ["Cherry", "apple", "Banana"]],
+  ])("sort=%s orders the list", async (sort, order) => {
+    expect(await titles(await page(`/bookmarks?sort=${sort}`))).toEqual(order);
+  });
+
+  it("keeps only unread bookmarks with unread=yes", async () => {
+    expect(await titles(await page("/bookmarks?unread=yes"))).toEqual(["apple"]);
+  });
+
+  it("keeps sort and unread in the search form", async () => {
+    const hidden = await select(await page("/bookmarks?sort=title_asc&unread=yes"), 'form.search input[type="hidden"]');
+
+    expect(hidden.map((input) => [input.attrs.name, input.attrs.value])).toEqual([
+      ["sort", "title_asc"],
+      ["unread", "yes"],
+    ]);
+  });
+});
+
 describe("Navigation and access", () => {
   it("redirects root to the list", async () => {
     const response = await get("/", { cookie });

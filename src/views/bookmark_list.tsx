@@ -25,14 +25,40 @@ export type Listing = {
   now: number;
 };
 
-export const BookmarkPage: FC<{ user: User } & Listing> = ({ user, archived, path, params, items, empty, now }) => {
+const SORTS: [ListSort, string][] = [
+  ["added_desc", "Newest"],
+  ["added_asc", "Oldest"],
+  ["title_asc", "Title A–Z"],
+  ["title_desc", "Title Z–A"],
+];
+
+export const BookmarkPage: FC<{ user: User } & Listing> = ({ user, archived, path, params, items, empty, now, ...rest }) => {
+  const { q, sort, unread } = rest;
   const link: Link = (changes) => pageUrl(path, params, changes);
+  const active = (on: boolean) => (on ? "active" : undefined);
   return (
     <Layout
       title={archived ? "Archived bookmarks" : "Bookmarks"}
       user={user}
       section={archived ? "archived" : "bookmarks"}
     >
+      <form class="search" method="get" action={path}>
+        <input type="search" name="q" value={q} placeholder="Search" aria-label="Search" />
+        {sort !== "added_desc" && <input type="hidden" name="sort" value={sort} />}
+        {unread && <input type="hidden" name="unread" value="yes" />}
+        <button>Search</button>
+        <a href={link({ q: null })}>Clear</a>
+      </form>
+      <p class="toolbar">
+        {SORTS.map(([value, label]) => (
+          <a href={link({ sort: value })} class={active(value === sort)}>
+            {label}
+          </a>
+        ))}
+        <a href={link({ unread: unread ? null : "yes" })} class={active(unread)}>
+          Unread
+        </a>
+      </p>
       <div class="listing">
         <section>
           {empty && <p class="empty">{empty}</p>}
