@@ -72,3 +72,28 @@ describe("Query grammar on the active list", () => {
     expect(body.count).toBe(expected.length);
   });
 });
+
+describe("Queries that do not parse", () => {
+  it.each(["(python", "python)", "python and", "and python", "()", "not", '"unclosed'])("%j answers zero results", async (q) => {
+    const body = await search(q);
+
+    expect(body.count).toBe(0);
+    expect(body.results).toEqual([]);
+  });
+
+  it("answers zero results for a query with too many terms", async () => {
+    const body = await search(Array.from({ length: 30 }, (_, n) => `term${n}`).join(" "));
+
+    expect(body.count).toBe(0);
+  });
+});
+
+describe("Queries without a filter", () => {
+  it("returns everything active for an empty query", async () => {
+    expect(urls(await search(""))).toEqual([b3, b2, b1]);
+  });
+
+  it("returns everything active for a whitespace-only query", async () => {
+    expect(urls(await search("  "))).toEqual([b3, b2, b1]);
+  });
+});
