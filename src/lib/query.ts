@@ -22,6 +22,7 @@ export function tagsIn(q: string): string[] {
 }
 
 /** `q` with ` #name` appended. */
+// DEBT(#26/W1): tag names may hold whitespace or parentheses, which a `#name` token cannot carry; such a tag's link reads as another tag plus a term, or does not parse.
 export const withTag = (q: string, name: string): string => `${q.trim()} #${name}`.trim();
 
 /** `q` without its `#name` tokens in any case, each taken out with the whitespace before it. */
