@@ -32,6 +32,7 @@ export function compileSearch(q: string): SearchFilter | null {
     // ponytail: 90-parameter budget; split the query or index with FTS5 if real queries hit it
     return params.length > PARAM_BUDGET ? null : { where, params };
   } catch (error) {
+    // DEBT(#25/W1): thousands of nested parentheses or `not`s overflow the recursive parser; the RangeError escapes as a 500.
     if (error instanceof ParseError) return null;
     throw error;
   }
