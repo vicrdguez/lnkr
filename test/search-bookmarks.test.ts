@@ -135,13 +135,11 @@ describe("Search composes with the other list parameters", () => {
 describe("Term matching is a substring match on every text field", () => {
   it.each<[string, string[], string]>([
     ["Rust Book", [b2], "title"],
+    // Quoted, as decided on the work item: bare `not` is the operator, which would exclude this bookmark.
+    ['"not code"', [b3], "description"],
     ["chapter 3", [b2], "notes"],
     ["/cooking", [b3], "url"],
   ])("%j matches through the %s", async (q, expected) => {
     expect(urls(await search(q))).toEqual(expected);
   });
-
-  // behavior.md expects `not code` to match b3 through its description, but the grammar it also specifies
-  // reads `not` as an operator, which excludes b3; awaiting the human decision recorded on the work item.
-  it.todo('"not code" matches through the description');
 });
