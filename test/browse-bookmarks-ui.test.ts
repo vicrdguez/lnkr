@@ -188,6 +188,43 @@ describe("Pagination", () => {
   });
 });
 
+describe("Tag sidebar", () => {
+  const sidebar = async (html: string) => (await select(html, "#sidebar li")).map((li) => li.text);
+
+  beforeEach(async () => {
+    await create("https://example.com/1", { tag_names: ["python", "web"] });
+    await create("https://example.com/2", { tag_names: ["python"] });
+    await create("https://example.com/3", { tag_names: ["rust"] });
+  });
+
+  it("lists the tags of the whole result with counts", async () => {
+    expect(await sidebar(await page("/bookmarks"))).toEqual(["python 2", "rust 1", "web 1"]);
+  });
+
+  it("follows the filter", async () => {
+    expect(await sidebar(await page("/bookmarks?q=%23python"))).toEqual(["python 2", "web 1"]);
+  });
+
+  it("adds the tag to the query", async () => {
+    const rust = (await select(await page("/bookmarks?q=example"), "#sidebar li a")).find((a) => a.text === "rust");
+
+    expect(rust?.attrs.href).toBe("/bookmarks?q=example+%23rust");
+  });
+
+  it("removes a selected tag", async () => {
+    const [selected] = await select(await page("/bookmarks?q=example+%23python"), "#sidebar li.selected a");
+
+    expect(selected.text).toBe("python");
+    expect(selected.attrs.href).toBe("/bookmarks?q=example");
+  });
+
+  it("counts across all pages", async () => {
+    for (let n = 1; n <= 35; n++) await create(`https://example.com/many${n}`, { tag_names: ["many"] });
+
+    expect(await sidebar(await page("/bookmarks"))).toContain("many 35");
+  });
+});
+
 describe("Navigation and access", () => {
   it("redirects root to the list", async () => {
     const response = await get("/", { cookie });

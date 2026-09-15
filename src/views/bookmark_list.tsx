@@ -2,7 +2,7 @@ import type { FC } from "hono/jsx";
 import type { BookmarkRow, ListSort } from "../db/bookmarks";
 import type { User } from "../db/users";
 import { absoluteDate, archiveTimestamp, relativeDate } from "../lib/dates";
-import { pageUrl } from "../lib/query";
+import { pageUrl, tagsIn, withoutTag, withTag } from "../lib/query";
 import { Layout } from "./layout";
 
 /** A link to this page with the query changed; see `pageUrl`. */
@@ -33,7 +33,7 @@ const SORTS: [ListSort, string][] = [
 ];
 
 export const BookmarkPage: FC<{ user: User } & Listing> = ({ user, archived, path, params, items, empty, now, ...rest }) => {
-  const { q, sort, unread, page, pages } = rest;
+  const { q, sort, unread, page, pages, tags } = rest;
   const link: Link = (changes) => pageUrl(path, params, changes);
   const active = (on: boolean) => (on ? "active" : undefined);
   return (
@@ -75,9 +75,29 @@ export const BookmarkPage: FC<{ user: User } & Listing> = ({ user, archived, pat
             {page < pages && <a href={link({ page: String(page + 1) })}>Next</a>}
           </nav>
         </section>
-        <aside id="sidebar" />
+        <Sidebar tags={tags} q={q} link={link} />
       </div>
     </Layout>
+  );
+};
+
+const Sidebar: FC<{ tags: Listing["tags"]; q: string; link: Link }> = ({ tags, q, link }) => {
+  const selected = new Set(tagsIn(q));
+  return (
+    <aside id="sidebar">
+      <h2>Tags</h2>
+      <ul>
+        {tags.map(({ name, count }) => {
+          const on = selected.has(name.toLowerCase());
+          return (
+            <li class={on ? "selected" : undefined}>
+              <a href={link({ q: on ? withoutTag(q, name) || null : withTag(q, name) })}>{name}</a>{" "}
+              <span class="count">{count}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </aside>
   );
 };
 

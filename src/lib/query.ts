@@ -12,3 +12,20 @@ export function pageUrl(path: string, current: URLSearchParams, changes: Record<
   const query = params.toString();
   return query ? `${path}?${query}` : path;
 }
+
+/** Quoted phrases, with `\` taking the next character literally, and `#name` tokens as the query grammar reads them. */
+const PHRASE_OR_TAG = /"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|(\s*)#([^\s()]+)/g;
+
+/** Lower-cased names of the `#name` tokens in `q` outside quotes. */
+export function tagsIn(q: string): string[] {
+  return [...q.matchAll(PHRASE_OR_TAG)].flatMap((match) => (match[2] ? [match[2].toLowerCase()] : []));
+}
+
+/** `q` with ` #name` appended. */
+export const withTag = (q: string, name: string): string => `${q.trim()} #${name}`.trim();
+
+/** `q` without its `#name` tokens in any case, each taken out with the whitespace before it. */
+export function withoutTag(q: string, name: string): string {
+  const wanted = name.toLowerCase();
+  return q.replace(PHRASE_OR_TAG, (token, _space, tag?: string) => (tag?.toLowerCase() === wanted ? "" : token)).trim();
+}
