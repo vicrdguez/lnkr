@@ -1,4 +1,6 @@
 import { exports } from "cloudflare:workers";
+import { http, HttpResponse } from "msw";
+import { network } from "./network";
 
 export const BASE = "https://lnkr.test";
 export const USERNAME = "vic";
@@ -61,4 +63,26 @@ function request(
   const headers = { ...init.headers };
   if (cookie) headers.cookie = `sessionid=${cookie}`;
   return exports.default.fetch(new URL(path, base), { ...init, headers, redirect: "manual" });
+}
+
+/** The API token shown on `/settings` for the session `cookie`. */
+export async function apiToken(cookie: string): Promise<string> {
+  const html = await (await get("/settings", { cookie })).text();
+  const token = html.match(/<code id="api-token">([^<]*)<\/code>/)?.[1];
+  if (!token) throw new Error("no api token on /settings");
+  return token;
+}
+
+/** A small JSON client for `/api/` sending `Authorization: Token <token>` when one is given. */
+export function api(token?: string) {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (token) headers.authorization = `Token ${token}`;
+  const send = (method: string) => (path: string, body?: unknown) =>
+    request(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }, {});
+  return { get: send("GET"), post: send("POST"), put: send("PUT"), patch: send("PATCH"), del: send("DELETE") };
+}
+
+/** Serves `html` as `text/html` at `url` for the rest of the test. */
+export function mockPage(url: string, html: string): void {
+  network.use(http.get(url, () => HttpResponse.html(html)));
 }

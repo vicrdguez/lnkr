@@ -50,3 +50,9 @@ export function findUserByUsername(sql: SqlStorage, username: string): User | nu
 export function updatePassword(sql: SqlStorage, id: number, passwordHash: string): void {
   sql.exec("UPDATE users SET password_hash = ? WHERE id = ?", passwordHash, id);
 }
+
+/** The Tenant's only user, or null before setup. */
+export function firstUser(sql: SqlStorage): User | null {
+  const row = sql.exec<UserRow>("SELECT * FROM users ORDER BY id LIMIT 1").toArray()[0];
+  return row ? toUser(row) : null;
+}
