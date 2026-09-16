@@ -157,7 +157,7 @@ describe("Password login", () => {
 
     const loggedIn = await get("/", { cookie });
     expect(loggedIn.status).toBe(302);
-    expect(location(loggedIn).href).toBe(`${BASE}/settings`);
+    expect(location(loggedIn).href).toBe(`${BASE}/bookmarks`);
 
     const anonymous = await get("/");
     expect(anonymous.status).toBe(302);

@@ -2,7 +2,17 @@ import { raw } from "hono/html";
 import type { FC, PropsWithChildren } from "hono/jsx";
 import type { User } from "../db/users";
 
-export const Layout: FC<PropsWithChildren<{ title: string; user?: User | null }>> = ({ title, user, children }) => (
+export type Section = "bookmarks" | "archived" | "settings";
+
+/** The attributes marking the current choice among links: the `active` class and `aria-current`. */
+export const current = (on: boolean, value = "page") => (on ? { class: "active", "aria-current": value } : {});
+
+export const Layout: FC<PropsWithChildren<{ title: string; user?: User | null; section?: Section }>> = ({
+  title,
+  user,
+  section,
+  children,
+}) => (
   <>
     {/* The only unescaped fragment: a constant doctype, which JSX cannot express. */}
     {raw("<!doctype html>")}
@@ -18,7 +28,15 @@ export const Layout: FC<PropsWithChildren<{ title: string; user?: User | null }>
           <strong>lnkr</strong>
           {user && (
             <>
-              <a href="/settings">Settings</a>
+              <a href="/bookmarks" {...current(section === "bookmarks")}>
+                Bookmarks
+              </a>
+              <a href="/bookmarks/archived" {...current(section === "archived")}>
+                Archived
+              </a>
+              <a href="/settings" {...current(section === "settings")}>
+                Settings
+              </a>
               <form method="post" action="/logout">
                 <button>Log out</button>
               </form>
