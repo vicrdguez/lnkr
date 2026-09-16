@@ -7,8 +7,8 @@ export const BASE = "https://lnkr.test";
 export const USERNAME = "vic";
 export const PASSWORD = "correct horse battery";
 
-/** `cookie` is a `sessionid` value; `origin` defaults to `base`, which defaults to `BASE`. */
-export type Options = { cookie?: string; origin?: string; base?: string };
+/** `cookie` is a `sessionid` value; `origin` defaults to `base`, which defaults to `BASE`; `headers` are added as given. */
+export type Options = { cookie?: string; origin?: string; base?: string; headers?: Record<string, string> };
 
 export function get(path: string, options: Options = {}): Promise<Response> {
   return request(path, {}, options);
@@ -59,9 +59,9 @@ export function location(response: Response): URL {
 function request(
   path: string,
   init: { method?: string; headers?: Record<string, string>; body?: string },
-  { cookie, base = BASE }: Options,
+  { cookie, base = BASE, headers: extra }: Options,
 ): Promise<Response> {
-  const headers = { ...init.headers };
+  const headers = { ...init.headers, ...extra };
   if (cookie) headers.cookie = `sessionid=${cookie}`;
   return exports.default.fetch(new URL(path, base), { ...init, headers, redirect: "manual" });
 }
