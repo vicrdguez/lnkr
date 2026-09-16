@@ -98,6 +98,44 @@ export function setArchived(sql: SqlStorage, id: number, archived: boolean, now:
   );
 }
 
+/** `IN (...)` over ids bound as one JSON array, so any number of them fits the parameter limit. */
+const IN_IDS = "IN (SELECT value FROM json_each(?))";
+
+export function bulkSetArchived(sql: SqlStorage, ids: number[], archived: boolean, now: string): void {
+  sql.exec(`UPDATE bookmarks SET is_archived = ?, date_modified = ? WHERE id ${IN_IDS}`, +archived, now, JSON.stringify(ids));
+}
+
+export function bulkSetUnread(sql: SqlStorage, ids: number[], unread: boolean, now: string): void {
+  sql.exec(`UPDATE bookmarks SET unread = ?, date_modified = ? WHERE id ${IN_IDS}`, +unread, now, JSON.stringify(ids));
+}
+
+/** Deletes the bookmarks and their tag attachments. */
+export function bulkDelete(sql: SqlStorage, ids: number[]): void {
+  sql.exec(`DELETE FROM bookmark_tags WHERE bookmark_id ${IN_IDS}`, JSON.stringify(ids));
+  sql.exec(`DELETE FROM bookmarks WHERE id ${IN_IDS}`, JSON.stringify(ids));
+}
+
+/** Attaches every one of `names` to each bookmark, creating tags that do not exist yet; other tags stay. */
+export function bulkAddTags(sql: SqlStorage, ids: number[], names: string[], now: string): void {
+  for (const name of normalizeTagNames(names)) {
+    sql.exec(
+      `INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id) SELECT value, ? FROM json_each(?)`,
+      ensureTag(sql, name, now).id, JSON.stringify(ids),
+    );
+  }
+  sql.exec(`UPDATE bookmarks SET date_modified = ? WHERE id ${IN_IDS}`, now, JSON.stringify(ids));
+}
+
+/** Detaches the tags named in `names`, regardless of case, from each bookmark; other tags stay. */
+export function bulkRemoveTags(sql: SqlStorage, ids: number[], names: string[], now: string): void {
+  sql.exec(
+    `DELETE FROM bookmark_tags WHERE bookmark_id ${IN_IDS}
+     AND tag_id IN (SELECT t.id FROM tags t WHERE EXISTS (SELECT 1 FROM json_each(?) WHERE value = t.name COLLATE NOCASE))`,
+    JSON.stringify(ids), JSON.stringify(names),
+  );
+  sql.exec(`UPDATE bookmarks SET date_modified = ? WHERE id ${IN_IDS}`, now, JSON.stringify(ids));
+}
+
 /** Replaces the bookmark's tags wholesale, creating tags that do not exist yet. */
 export function setTags(sql: SqlStorage, id: number, names: string[], now: string): void {
   sql.exec("DELETE FROM bookmark_tags WHERE bookmark_id = ?", id);
@@ -150,6 +188,12 @@ function whereFor(filter: ListFilter): { where: string; params: (string | number
 export function countBookmarks(sql: SqlStorage, filter: ListFilter): number {
   const { where, params } = whereFor(filter);
   return sql.exec<{ n: number }>(`SELECT count(*) AS n FROM bookmarks b ${where}`, ...params).one().n;
+}
+
+/** The id of every bookmark matching `filter`. */
+export function idsMatching(sql: SqlStorage, filter: ListFilter): number[] {
+  const { where, params } = whereFor(filter);
+  return sql.exec<{ id: number }>(`SELECT b.id FROM bookmarks b ${where}`, ...params).toArray().map((row) => row.id);
 }
 
 export type PageOptions = ListFilter & { limit: number; offset: number; sort?: ListSort };

@@ -94,6 +94,58 @@ describe("Per-item actions", () => {
   it("renders buttons on the archive", async () => {
     expect(await buttons(await page("/bookmarks/archived"), "#bookmark-3")).toEqual(["Unarchive", "Delete"]);
   });
+
+  it("archives, patching the list and sidebar", async () => {
+    const found = await events("/bookmarks/1/archive");
+
+    const html = patched(found);
+    expect(html).toContain('<ul id="bookmark-list"');
+    expect(await titles(html)).toEqual(["Two"]);
+    expect(html).toContain('<aside id="sidebar"');
+    expect((await bookmark(1)).is_archived).toBe(true);
+  });
+
+  it("unarchives from the archive page", async () => {
+    const found = await events("/bookmarks/3/unarchive", ARCHIVE);
+
+    expect(await titles(patched(found))).toEqual([]);
+    expect((await bookmark(3)).is_archived).toBe(false);
+  });
+
+  it("deletes the bookmark", async () => {
+    const found = await events("/bookmarks/2/delete");
+
+    expect(await titles(patched(found))).toEqual(["One"]);
+    expect(await status(2)).toBe(404);
+  });
+
+  it("marks read", async () => {
+    const found = await events("/bookmarks/1/read");
+
+    const [item] = await select(patched(found), "#bookmark-1");
+    expect(item.attrs.class).toBeUndefined();
+    expect((await bookmark(1)).unread).toBe(false);
+  });
+
+  it("re-renders for the page's query", async () => {
+    const found = await events("/bookmarks/1/archive", { ...ACTIVE, q: "Two" });
+
+    expect(await titles(patched(found))).toEqual(["Two"]);
+  });
+
+  it("steps back a page after acting on the last item of the last page", async () => {
+    // Thirty-one active bookmarks, newest first: page 2 holds only the oldest, One.
+    for (let n = 4; n <= 32; n++) await create(`https://example.com/${n}`, { title: `B${n}` });
+
+    const found = await events("/bookmarks/1/archive", { ...ACTIVE, page: 2 });
+
+    expect(await titles(patched(found))).toHaveLength(30);
+    expect(patchedSignals(found)).toContainEqual({ page: 1 });
+  });
+
+  it("answers 404 for an unknown id", async () => {
+    expect((await action("/bookmarks/999/archive")).status).toBe(404);
+  });
 });
 
 describe("Bulk bar", () => {
