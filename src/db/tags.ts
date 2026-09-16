@@ -19,6 +19,20 @@ export function listTags(sql: SqlStorage, limit: number, offset: number): { coun
   };
 }
 
+/** Up to `limit` names starting with `prefix`, none in `exclude`, both regardless of case, ordered by name regardless of case. */
+export function suggestTags(sql: SqlStorage, prefix: string, exclude: string[], limit: number): string[] {
+  const pattern = `${prefix.replace(/[\\%_]/g, "\\$&")}%`;
+  return sql
+    .exec<{ name: string }>(
+      `SELECT name FROM tags WHERE name LIKE ? ESCAPE '\\'
+       AND NOT EXISTS (SELECT 1 FROM json_each(?) WHERE value = tags.name COLLATE NOCASE)
+       ORDER BY name COLLATE NOCASE LIMIT ?`,
+      pattern, JSON.stringify(exclude), limit,
+    )
+    .toArray()
+    .map((row) => row.name);
+}
+
 /** Detaches the tag from every bookmark and deletes it; false when no such tag. */
 export function deleteTag(sql: SqlStorage, id: number): boolean {
   sql.exec("DELETE FROM bookmark_tags WHERE tag_id = ?", id);

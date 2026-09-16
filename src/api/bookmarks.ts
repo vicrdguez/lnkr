@@ -13,6 +13,7 @@ import {
   toFields,
   updateBookmark,
 } from "../db/bookmarks";
+import { isHttpUrl } from "../lib/url";
 import { compileSearch } from "../search";
 import { fetchPageMetadata } from "../services/metadata";
 import { pageParams, paginate } from "./envelope";
@@ -49,14 +50,6 @@ function readFields(body: Record<string, unknown>, urlOptional = false): FieldsR
     if (!isHttpUrl(fields.url)) errors.url = ["Enter a valid URL."];
   } else if (!urlOptional && !errors.url) errors.url = ["This field is required."];
   return Object.keys(errors).length ? { errors } : { fields };
-}
-
-function isHttpUrl(value: string): boolean {
-  try {
-    return ["http:", "https:"].includes(new URL(value).protocol);
-  } catch {
-    return false;
-  }
 }
 
 /** An ISO timestamp from the query parameter `name`, or undefined when absent or unparsable. */

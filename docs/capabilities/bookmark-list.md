@@ -12,6 +12,8 @@ A person browses the Tenant's Bookmarks in the web app: the active list and the 
 - The nav shows Bookmarks, Archived, Settings and Log out and marks the current section.
 - Everything works without JavaScript: the controls are links and one GET form.
 
+<!-- DEBT(#27/W3): stale since #27: the nav also has Add bookmark, every item has an Edit link, and creating and editing from the UI moved into bookmark-form.md. -->
+
 ## Out of scope
 - Creating, editing, archiving or deleting from the UI; bulk actions
 - Display preferences: items per page, description modes, date display, link target, Tag grouping are fixed
