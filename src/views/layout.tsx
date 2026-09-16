@@ -22,6 +22,7 @@ export const Layout: FC<PropsWithChildren<{ title: string; user?: User | null; s
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>{title} · lnkr</title>
         <link rel="stylesheet" href="/static/style.css" />
+        <script type="module" src="/static/datastar.js"></script>
       </head>
       <body>
         <nav>
