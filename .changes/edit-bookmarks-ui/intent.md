@@ -26,16 +26,16 @@ A new-bookmark page and an edit page sharing one form, prefilled from query para
 - Preferences for default unread or link target
 
 ## Definition of Done
-- [ ] The new-bookmark form renders with its fields, prefilled from the query parameters, and carries the Datastar signals for the form.
-- [ ] Submitting a valid new URL creates the Bookmark with the given fields and tags and redirects to `/bookmarks`; with `auto_close` it redirects to `/bookmarks/close`, which shows the closing message.
-- [ ] Submitting a URL that already exists updates that Bookmark instead of creating a second one.
-- [ ] An invalid URL answers 400 with the form, an error and nothing saved.
-- [ ] The check for an existing URL patches the duplicate notice with a link to the edit page and patches every form signal from the Bookmark.
-- [ ] The check for a new URL patches an empty hint and fills only empty title and description from the page's metadata, leaving typed values alone.
-- [ ] Tag suggestions match the last typed token case-insensitively, exclude already typed names, and cap at ten.
-- [ ] The edit form is prefilled from the Bookmark; saving updates fields and tags and redirects to `/bookmarks`; a URL taken by another Bookmark answers 400 with the form and an error.
-- [ ] Datastar actions without the `Datastar-Request` header answer 400; all form and action routes need a session.
-- [ ] The settings page shows the bookmarklet link and list items show an Edit link.
+- [x] The new-bookmark form renders with its fields, prefilled from the query parameters, and carries the Datastar signals for the form.
+- [x] Submitting a valid new URL creates the Bookmark with the given fields and tags and redirects to `/bookmarks`; with `auto_close` it redirects to `/bookmarks/close`, which shows the closing message.
+- [x] Submitting a URL that already exists updates that Bookmark instead of creating a second one.
+- [x] An invalid URL answers 400 with the form, an error and nothing saved.
+- [x] The check for an existing URL patches the duplicate notice with a link to the edit page and patches every form signal from the Bookmark.
+- [x] The check for a new URL patches an empty hint and fills only empty title and description from the page's metadata, leaving typed values alone.
+- [x] Tag suggestions match the last typed token case-insensitively, exclude already typed names, and cap at ten.
+- [x] The edit form is prefilled from the Bookmark; saving updates fields and tags and redirects to `/bookmarks`; a URL taken by another Bookmark answers 400 with the form and an error.
+- [x] Datastar actions without the `Datastar-Request` header answer 400; all form and action routes need a session.
+- [x] The settings page shows the bookmarklet link and list items show an Edit link.
 
 ## Manual verification
 - [ ] In a browser at `wrangler dev`, type a URL and watch the title fill in, type a tag prefix and pick a suggestion, save, then edit the same Bookmark.
