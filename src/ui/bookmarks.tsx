@@ -14,8 +14,8 @@ export const listFilter = (archived: boolean, { q, unread }: PageSignals): ListF
   search: compileSearch(q) ?? MATCH_NONE,
 });
 
-/** Everything the list page renders for `signals`; a page past the end is the last page. */
-export function listing(sql: SqlStorage, archived: boolean, signals: PageSignals): Listing {
+/** Everything the list page renders for `signals`, its links keeping `params`; a page past the end is the last page. */
+export function listing(sql: SqlStorage, archived: boolean, signals: PageSignals, params: URLSearchParams): Listing {
   const filter = listFilter(archived, signals);
   const count = countBookmarks(sql, filter);
   const pages = Math.max(Math.ceil(count / ITEMS_PER_PAGE), 1);
@@ -26,6 +26,7 @@ export function listing(sql: SqlStorage, archived: boolean, signals: PageSignals
   return {
     ...signals,
     archived,
+    params,
     page,
     pages,
     items: rows.map((row) => ({ row, tags: names.get(row.id) ?? [] })),
@@ -36,8 +37,9 @@ export function listing(sql: SqlStorage, archived: boolean, signals: PageSignals
 }
 
 const listPage = (archived: boolean) => (c: Context<AppEnv>) => {
-  const signals = parsePageSignals(Object.fromEntries(new URL(c.req.url).searchParams));
-  return c.html(<BookmarkPage user={c.get("user")} {...listing(c.get("sql"), archived, signals)} />);
+  const params = new URL(c.req.url).searchParams;
+  const signals = parsePageSignals(Object.fromEntries(params));
+  return c.html(<BookmarkPage user={c.get("user")} {...listing(c.get("sql"), archived, signals, params)} />);
 };
 
 export const bookmarkPages = new Hono<AppEnv>();

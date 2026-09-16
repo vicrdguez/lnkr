@@ -78,8 +78,8 @@ describe("Per-item actions", () => {
 
     expect(await buttons(html, "#bookmark-1")).toEqual(["Archive", "Delete", "Mark read"]);
     expect(await buttons(html, "#bookmark-2")).toEqual(["Archive", "Delete"]);
-    const remove = (await select(html, "#bookmark-1 button")).find((b) => b.text === "Delete");
-    expect(remove?.attrs["data-on:click"]).toContain("confirm(");
+    const del = (await select(html, "#bookmark-1 button")).find((b) => b.text === "Delete");
+    expect(del?.attrs["data-on:click"]).toContain("confirm(");
     expect(await signalsOf(html)).toMatchObject({
       q: "",
       sort: "added_desc",
@@ -157,10 +157,15 @@ describe("Bulk bar", () => {
     expect(await select(html, "div#bulk-bar")).toHaveLength(1);
     expect(await buttons(html, "#bulk-bar")).toEqual(["Archive", "Delete", "Mark read", "Mark unread", "Tag", "Untag"]);
     const inputs = await select(html, "#bulk-bar input");
-    expect(inputs.find((input) => input.attrs["data-bind"] === "bulkTags")?.attrs.type ?? "text").toBe("text");
+    expect(inputs.find((input) => input.attrs["data-bind"] === "bulkTags")?.attrs.type).toBe("text");
     expect(inputs.find((input) => input.attrs["data-bind"] === "selectAcross")?.attrs.type).toBe("checkbox");
     const labels = await select(html, "#bulk-bar label");
-    expect(labels.find((label) => label.text.includes("Select all"))?.attrs).toBeDefined();
+    expect(labels.map((label) => label.text.trim())).toContain("Select all");
+    const checkboxes = await select(html, '#bulk-bar label input[type="checkbox"]');
+    expect(checkboxes.map((box) => box.attrs["data-on:change"] ?? box.attrs["data-bind"])).toEqual([
+      expect.stringContaining("$selected = {b2: evt.target.checked, b1: evt.target.checked}"),
+      "selectAcross",
+    ]);
     const [one] = await select(html, '#bookmark-1 input[type="checkbox"]');
     expect(one.attrs).toHaveProperty("data-bind:selected.b1");
     const [two] = await select(html, '#bookmark-2 input[type="checkbox"]');
