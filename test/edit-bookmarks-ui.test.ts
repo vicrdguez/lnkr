@@ -1,5 +1,7 @@
+import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
-import { api, apiToken, BASE, formPost, get, location, select, setupTenant } from "./helpers";
+import { api, apiToken, BASE, formPost, get, location, mockPage, select, setupTenant } from "./helpers";
+import { network } from "./network";
 
 type Json = Record<string, unknown>;
 
@@ -34,6 +36,52 @@ async function fieldValues(html: string): Promise<Record<string, string>> {
 }
 
 const signalsOf = async (html: string) => JSON.parse((await select(html, "main form"))[0].attrs["data-signals"]);
+
+const DATASTAR = { "datastar-request": "true" };
+
+/** Calls a Datastar GET action the way the client does: signals as JSON in `datastar`, plus the header. */
+const action = (path: string, signals: Json, headers: Record<string, string> = DATASTAR) =>
+  get(`${path}?datastar=${encodeURIComponent(JSON.stringify(signals))}`, { cookie, headers });
+
+type SseEvent = { event: string; data: Record<string, string> };
+
+/** The events of an SSE body: each block's `event:` name and its `data: <key> <value>` lines joined per key. */
+function parseSse(text: string): SseEvent[] {
+  return text
+    .split("\n\n")
+    .filter(Boolean)
+    .map((block) => {
+      const [first, ...rest] = block.split("\n");
+      const data: Record<string, string> = {};
+      for (const line of rest) {
+        const [, key, value] = line.match(/^data: (\S+) ?(.*)$/) ?? [];
+        if (key) data[key] = key in data ? `${data[key]}\n${value}` : value;
+      }
+      return { event: first.replace("event: ", ""), data };
+    });
+}
+
+/** The action's events, expecting an SSE response. */
+async function events(path: string, signals: Json): Promise<SseEvent[]> {
+  const response = await action(path, signals);
+  expect(response.status).toBe(200);
+  expect(response.headers.get("content-type")).toBe("text/event-stream");
+  return parseSse(await response.text());
+}
+
+/** The elements of the one `datastar-patch-elements` event. */
+function patchedElements(found: SseEvent[]): string {
+  const patches = found.filter((event) => event.event === "datastar-patch-elements");
+  expect(patches).toHaveLength(1);
+  return patches[0].data.elements;
+}
+
+/** The signals of the one `datastar-patch-signals` event, or undefined when none was sent. */
+function patchedSignals(found: SseEvent[]): Json | undefined {
+  const patches = found.filter((event) => event.event === "datastar-patch-signals");
+  expect(patches.length).toBeLessThanOrEqual(1);
+  return patches[0] && JSON.parse(patches[0].data.signals);
+}
 
 describe("New bookmark form", () => {
   it("renders empty", async () => {
@@ -114,5 +162,68 @@ describe("Saving a new bookmark", () => {
     expect(html).toContain("Enter a valid URL");
     expect(await fieldValues(html)).toMatchObject({ url, title: "T" });
     expect((await listed()).count).toBe(0);
+  });
+});
+
+describe("URL check", () => {
+  const empty = { url: "", title: "", description: "", notes: "", tags: "", unread: false };
+
+  it("fills the form from the existing bookmark and shows the notice", async () => {
+    const { id } = await create("https://example.com/x", {
+      title: "X",
+      description: "D",
+      notes: "N",
+      tag_names: ["a", "b"],
+      unread: true,
+    });
+
+    const found = await events("/bookmarks/check", { ...empty, url: "https://example.com/x" });
+
+    const [hint] = await select(patchedElements(found), "#url-hint");
+    expect(hint.text).toContain("This URL is already bookmarked");
+    const [link] = await select(patchedElements(found), "#url-hint a");
+    expect(link.attrs.href).toBe(`/bookmarks/${id}/edit`);
+    expect(patchedSignals(found)).toEqual({ title: "X", description: "D", notes: "N", tags: "a b", unread: true });
+  });
+
+  it("fills empty fields from the page for a new URL", async () => {
+    mockPage("https://example.com/new", '<title>Page title</title><meta name="description" content="Page desc">');
+
+    const found = await events("/bookmarks/check", { ...empty, url: "https://example.com/new", description: "Mine" });
+
+    const [hint] = await select(patchedElements(found), "#url-hint");
+    expect(hint.text).toBe("");
+    expect(patchedSignals(found)).toEqual({ title: "Page title" });
+  });
+
+  it("patches nothing but the hint for an unreachable page", async () => {
+    const found = await events("/bookmarks/check", { ...empty, url: "https://example.com/down" });
+
+    const [hint] = await select(patchedElements(found), "#url-hint");
+    expect(hint.text).toBe("");
+    expect(patchedSignals(found)).toBeUndefined();
+  });
+
+  it("patches only an empty hint for an invalid URL without going online", async () => {
+    let requests = 0;
+    network.use(
+      http.all("*", () => {
+        requests++;
+        return HttpResponse.error();
+      }),
+    );
+
+    const found = await events("/bookmarks/check", { ...empty, url: "nope" });
+
+    const [hint] = await select(patchedElements(found), "#url-hint");
+    expect(hint.text).toBe("");
+    expect(patchedSignals(found)).toBeUndefined();
+    expect(requests).toBe(0);
+  });
+
+  it("needs the Datastar header", async () => {
+    const response = await action("/bookmarks/check", { url: "https://example.com/" }, {});
+
+    expect(response.status).toBe(400);
   });
 });

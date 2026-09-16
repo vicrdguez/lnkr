@@ -1,8 +1,10 @@
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
-import { EMPTY_BOOKMARK, findBookmarkByUrl, saveBookmark, toFields } from "../db/bookmarks";
+import { readSignals, requireDatastar, sse } from "../datastar";
+import { EMPTY_BOOKMARK, findBookmarkByUrl, saveBookmark, tagNamesOf, toFields } from "../db/bookmarks";
 import { isHttpUrl } from "../lib/url";
-import { BookmarkForm, ClosePage, EMPTY_FORM, type FormValues } from "../views/bookmark_form";
+import { fetchPageMetadata } from "../services/metadata";
+import { BookmarkForm, ClosePage, EMPTY_FORM, type FormValues, UrlHint } from "../views/bookmark_form";
 import { formFields } from "./form";
 
 /** The posted form: the URL trimmed, `tagNames` split from the space-separated field, flags by presence. */
@@ -44,3 +46,34 @@ bookmarkForm.post("/bookmarks/new", async (c) => {
 });
 
 bookmarkForm.get("/bookmarks/close", (c) => c.html(<ClosePage />));
+
+/** A signal as text; the client is not trusted to send strings. */
+const text = (signal: unknown): string => (typeof signal === "string" ? signal : "");
+
+/**
+ * Patches `#url-hint` with the duplicate notice when the URL is bookmarked, filling every form signal from that
+ * Bookmark; otherwise clears the hint and fills only an empty title and description from the page's metadata.
+ */
+bookmarkForm.get("/bookmarks/check", requireDatastar, async (c) => {
+  const sql = c.get("sql");
+  const signals = await readSignals(c);
+  const url = text(signals.url).trim();
+  return sse(async (stream) => {
+    const existing = isHttpUrl(url) ? findBookmarkByUrl(sql, url) : null;
+    stream.patchElements(String(<UrlHint id={existing?.id} />));
+    if (existing) {
+      const { title, description, notes, unread } = toFields(existing);
+      const tags = tagNamesOf(sql, existing.id).join(" ");
+      stream.patchSignals(JSON.stringify({ title, description, notes, tags, unread }));
+      return;
+    }
+    if (!isHttpUrl(url)) return;
+    const page = await fetchPageMetadata(url);
+    const patch: Record<string, string> = {};
+    for (const key of ["title", "description"] as const) {
+      const found = page[key];
+      if (found && !text(signals[key])) patch[key] = found;
+    }
+    if (Object.keys(patch).length) stream.patchSignals(JSON.stringify(patch));
+  });
+});
