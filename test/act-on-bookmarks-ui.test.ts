@@ -174,3 +174,128 @@ describe("Bulk bar", () => {
     expect(found).not.toContain("Archive");
   });
 });
+
+describe("Bulk actions", () => {
+  beforeEach(threeBookmarks);
+
+  /** Posts a bulk action with the active page's signals unless `signals` says otherwise. */
+  const bulk = (signals: Json) =>
+    events("/bookmarks/bulk", { ...ACTIVE, selected: {}, selectAcross: false, bulkTags: "", ...signals });
+  const tagged = async (id: number, names: string[]) =>
+    expect((await api(token).patch(`/api/bookmarks/${id}/`, { tag_names: names })).status).toBe(200);
+
+  it.each<[string, Json | number, Json | number]>([
+    ["archive", { is_archived: true }, { is_archived: false }],
+    ["delete", 404, 200],
+    ["read", { unread: false }, { unread: false }],
+    ["unread", { unread: true }, { unread: false }],
+  ])("%s applies to the selected ids", async (action, one, two) => {
+    await bulk({ action, selected: { b1: true, b2: false } });
+
+    for (const [id, expected] of [[1, one], [2, two]] as const) {
+      if (typeof expected === "number") expect(await status(id)).toBe(expected);
+      else expect(await bookmark(id)).toMatchObject(expected);
+    }
+  });
+
+  it("unarchives from the archive page", async () => {
+    await bulk({ ...ARCHIVE, action: "unarchive", selected: { b3: true } });
+
+    expect((await bookmark(3)).is_archived).toBe(false);
+  });
+
+  it("tag adds names", async () => {
+    await tagged(1, ["keep"]);
+
+    await bulk({ action: "tag", bulkTags: "alpha Beta", selected: { b1: true, b2: true } });
+
+    expect((await bookmark(1)).tag_names).toEqual(["alpha", "Beta", "keep"]);
+    expect((await bookmark(2)).tag_names).toEqual(["alpha", "Beta"]);
+  });
+
+  it("untag removes names", async () => {
+    await tagged(1, ["alpha", "keep"]);
+    await tagged(2, ["alpha", "keep"]);
+
+    await bulk({ action: "untag", bulkTags: "ALPHA", selected: { b1: true, b2: true } });
+
+    expect((await bookmark(1)).tag_names).toEqual(["keep"]);
+    expect((await bookmark(2)).tag_names).toEqual(["keep"]);
+  });
+
+  it("resets the selection", async () => {
+    const found = await bulk({ action: "read", selected: { b1: true }, bulkTags: "x" });
+
+    expect(patchedSignals(found)).toContainEqual({ selected: {}, selectAcross: false, bulkTags: "" });
+    const html = patched(found);
+    for (const opening of ['<ul id="bookmark-list"', '<aside id="sidebar"', '<div id="bulk-bar"']) {
+      expect(html).toContain(opening);
+    }
+  });
+
+  it("select across applies to the filtered result only", async () => {
+    await create("https://example.com/4", { tag_names: ["python"] });
+    await create("https://example.com/5", { tag_names: ["python"] });
+    await create("https://example.com/6", { tag_names: ["rust"] });
+
+    await bulk({ action: "archive", selectAcross: true, q: "#python" });
+
+    for (const id of [4, 5]) expect((await bookmark(id)).is_archived).toBe(true);
+    for (const id of [1, 2, 6]) expect((await bookmark(id)).is_archived).toBe(false);
+  });
+
+  it("select across respects the unread filter and the page kind", async () => {
+    await bulk({ action: "delete", selectAcross: true, unread: "yes" });
+
+    expect(await status(1)).toBe(404);
+    expect(await status(2)).toBe(200);
+    expect(await status(3)).toBe(200);
+  });
+
+  it("does nothing with nothing selected", async () => {
+    await bulk({ action: "delete" });
+
+    for (const id of [1, 2, 3]) expect(await status(id)).toBe(200);
+  });
+
+  it("answers 400 for an unknown action", async () => {
+    expect((await action("/bookmarks/bulk", { ...ACTIVE, action: "explode", selected: {} })).status).toBe(400);
+  });
+
+  it("takes more than a hundred selected ids", async () => {
+    const ids = [1, 2];
+    for (let n = 4; n <= 121; n++) ids.push(await create(`https://example.com/${n}`, { unread: true }));
+
+    await bulk({ action: "read", selected: Object.fromEntries(ids.map((id) => [`b${id}`, true])) });
+
+    const unread = await (await api(token).get("/api/bookmarks/?q=%21unread")).json<{ count: number }>();
+    expect(ids).toHaveLength(120);
+    expect(unread.count).toBe(0);
+    expect((await bookmark(121)).unread).toBe(false);
+  });
+});
+
+describe("Request requirements", () => {
+  beforeEach(threeBookmarks);
+
+  it("needs the Datastar header", async () => {
+    const response = await formPost("/bookmarks/1/archive", { page: "1" }, { cookie });
+
+    expect(response.status).toBe(400);
+    expect((await bookmark(1)).is_archived).toBe(false);
+  });
+
+  it("needs a JSON body", async () => {
+    const response = await formPost("/bookmarks/1/archive", { page: "1" }, { cookie, headers: DATASTAR });
+
+    expect(response.status).toBe(400);
+    expect((await bookmark(1)).is_archived).toBe(false);
+  });
+
+  it("needs a session", async () => {
+    const response = await jsonPost("/bookmarks/1/archive", ACTIVE, { headers: DATASTAR });
+
+    expect(response.status).toBe(302);
+    expect(location(response).href).toBe(`${BASE}/login?next=%2Fbookmarks%2F1%2Farchive`);
+  });
+});
