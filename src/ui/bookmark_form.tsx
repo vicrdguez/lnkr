@@ -2,9 +2,10 @@ import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
 import { readSignals, requireDatastar, sse } from "../datastar";
 import { EMPTY_BOOKMARK, findBookmarkByUrl, saveBookmark, tagNamesOf, toFields } from "../db/bookmarks";
+import { suggestTags } from "../db/tags";
 import { isHttpUrl } from "../lib/url";
 import { fetchPageMetadata } from "../services/metadata";
-import { BookmarkForm, ClosePage, EMPTY_FORM, type FormValues, UrlHint } from "../views/bookmark_form";
+import { BookmarkForm, ClosePage, EMPTY_FORM, type FormValues, TagSuggestions, UrlHint } from "../views/bookmark_form";
 import { formFields } from "./form";
 
 /** The posted form: the URL trimmed, `tagNames` split from the space-separated field, flags by presence. */
@@ -75,5 +76,18 @@ bookmarkForm.get("/bookmarks/check", requireDatastar, async (c) => {
       if (found && !text(signals[key])) patch[key] = found;
     }
     if (Object.keys(patch).length) stream.patchSignals(JSON.stringify(patch));
+  });
+});
+
+const MAX_SUGGESTIONS = 10;
+
+/** Patches `#tag-suggestions` with the names completing the last typed token, none when that token is empty. */
+bookmarkForm.get("/bookmarks/tags/suggest", requireDatastar, async (c) => {
+  const typed = text((await readSignals(c)).tags);
+  const tokens = typed.split(/\s+/);
+  const prefix = tokens.pop() ?? "";
+  const names = prefix ? suggestTags(c.get("sql"), prefix, tokens, MAX_SUGGESTIONS) : [];
+  return sse((stream) => {
+    stream.patchElements(String(<TagSuggestions typed={typed} names={names} />));
   });
 });

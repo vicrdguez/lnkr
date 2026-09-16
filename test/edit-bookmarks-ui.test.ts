@@ -227,3 +227,46 @@ describe("URL check", () => {
     expect(response.status).toBe(400);
   });
 });
+
+describe("Tag suggestions", () => {
+  const suggest = async (tags: string) => select(patchedElements(await events("/bookmarks/tags/suggest", { tags })), "#tag-suggestions button");
+  const names = async (tags: string) => (await suggest(tags)).map((button) => button.text);
+
+  beforeEach(async () => {
+    for (const name of ["python", "pytest", "rust", "Pyramid"]) {
+      expect((await api(token).post("/api/tags/", { name })).status).toBe(201);
+    }
+  });
+
+  it("matches the last token regardless of case", async () => {
+    expect(await names("rust py")).toEqual(["Pyramid", "pytest", "python"]);
+  });
+
+  it("excludes names already typed", async () => {
+    expect(await names("python py")).toEqual(["Pyramid", "pytest"]);
+    expect(await names("Python py")).toEqual(["Pyramid", "pytest"]);
+  });
+
+  it("suggests nothing for an empty last token", async () => {
+    const [box] = await select(patchedElements(await events("/bookmarks/tags/suggest", { tags: "python " })), "#tag-suggestions");
+
+    expect(box.text).toBe("");
+    expect(await names("python ")).toEqual([]);
+  });
+
+  it("caps at ten", async () => {
+    for (let n = 1; n <= 12; n++) await api(token).post("/api/tags/", { name: `t${String(n).padStart(2, "0")}` });
+
+    expect(await names("t")).toHaveLength(10);
+  });
+
+  it("completes the token when picked", async () => {
+    const buttons = await suggest("rust py");
+
+    expect(buttons.map((button) => button.attrs["data-on:click"])).toEqual([
+      "$tags = 'rust Pyramid '",
+      "$tags = 'rust pytest '",
+      "$tags = 'rust python '",
+    ]);
+  });
+});
