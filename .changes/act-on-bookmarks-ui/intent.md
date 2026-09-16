@@ -23,14 +23,14 @@ Per-item actions on both list pages, Archive or Unarchive, Delete with a confirm
 - Actions from the edit page or the API, which already exist
 
 ## Definition of Done
-- [ ] Archive, Unarchive, Delete and Mark read buttons render on the right pages and each POST applies the change and answers SSE with the re-rendered list and sidebar for the same query.
-- [ ] After an action on the last item of the last page, the response renders the previous page and patches the `page` signal.
-- [ ] Bulk archive, unarchive, delete, read and unread apply to exactly the selected ids.
-- [ ] Bulk tag adds the given names to every selected Bookmark, creating tags as needed; bulk untag removes them; other tags are untouched.
-- [ ] With select across, a bulk action applies to every Bookmark matching the current search, unread filter and archived state, and to nothing else.
-- [ ] The bulk response resets `selected`, `selectAcross` and `bulkTags` and re-renders the bulk bar.
-- [ ] The list page carries the page signals and the bulk bar markup; item checkboxes bind to `selected`.
-- [ ] Actions without the Datastar header or with a form body answer 400; unknown ids answer 404; all need a session.
+- [x] Archive, Unarchive, Delete and Mark read buttons render on the right pages and each POST applies the change and answers SSE with the re-rendered list and sidebar for the same query.
+- [x] After an action on the last item of the last page, the response renders the previous page and patches the `page` signal.
+- [x] Bulk archive, unarchive, delete, read and unread apply to exactly the selected ids.
+- [x] Bulk tag adds the given names to every selected Bookmark, creating tags as needed; bulk untag removes them; other tags are untouched.
+- [x] With select across, a bulk action applies to every Bookmark matching the current search, unread filter and archived state, and to nothing else.
+- [x] The bulk response resets `selected`, `selectAcross` and `bulkTags` and re-renders the bulk bar.
+- [x] The list page carries the page signals and the bulk bar markup; item checkboxes bind to `selected`.
+- [x] Actions without the Datastar header or with a form body answer 400; unknown ids answer 404; all need a session.
 
 ## Manual verification
 - [ ] In a browser at `wrangler dev`, archive an item and see it leave the list without a reload, select three items, tag them, and see the selection clear.
