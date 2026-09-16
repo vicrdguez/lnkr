@@ -1,4 +1,5 @@
 :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+/* DEBT(#27/manual): color-scheme is declared only here, so in dark mode every navigation paints white until this file loads; put <meta name="color-scheme" content="light dark"> in the layout and close-page heads. */
 body { max-width: 64rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
 nav { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-bottom: 2rem; }
 nav form { display: inline; }
