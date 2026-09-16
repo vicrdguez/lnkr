@@ -1,5 +1,5 @@
 import { http, HttpResponse } from "msw";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api, apiToken, BASE, formPost, get, location, mockPage, select, setupTenant } from "./helpers";
 import { network } from "./network";
 
@@ -268,5 +268,52 @@ describe("Tag suggestions", () => {
       "$tags = 'rust pytest '",
       "$tags = 'rust python '",
     ]);
+  });
+});
+
+describe("Edit bookmark", () => {
+  let id: unknown;
+  const read = async () => (await api(token).get(`/api/bookmarks/${id}/`)).json<Json>();
+
+  beforeEach(async () => {
+    ({ id } = await create("https://example.com/x", { title: "X", notes: "N", tag_names: ["a", "b"], unread: true }));
+    await create("https://example.com/y");
+  });
+
+  it("prefills the form", async () => {
+    const html = await page(`/bookmarks/${id}/edit`);
+
+    const [form] = await select(html, "main form");
+    expect(form.attrs.action).toBe(`/bookmarks/${id}/edit`);
+    expect(await fieldValues(html)).toMatchObject({ url: "https://example.com/x", title: "X", notes: "N", tags: "a b" });
+    const [unread] = await select(html, 'main form input[name="unread"]');
+    expect(unread.attrs.checked).toBeDefined();
+    expect(await signalsOf(html)).toMatchObject({ url: "https://example.com/x", title: "X", notes: "N", tags: "a b", unread: true });
+  });
+
+  it("saves the changes", async () => {
+    const before = (await read()).date_modified as string;
+    vi.setSystemTime(Date.parse(before) + 60_000);
+    const fields = { url: "https://example.com/x", title: "X2", description: "D2", notes: "", tags: "c" };
+
+    const response = await formPost(`/bookmarks/${id}/edit`, fields, { cookie });
+
+    expect(response.status).toBe(302);
+    expect(location(response).href).toBe(`${BASE}/bookmarks`);
+    const after = await read();
+    expect(after).toMatchObject({ title: "X2", description: "D2", notes: "", tag_names: ["c"], unread: false });
+    expect(after.date_modified as string > before).toBe(true);
+  });
+
+  it("refuses a URL another bookmark has", async () => {
+    const response = await formPost(`/bookmarks/${id}/edit`, { url: "https://example.com/y", title: "X" }, { cookie });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toContain("A bookmark with this URL already exists");
+    expect((await read()).url).toBe("https://example.com/x");
+  });
+
+  it("answers 404 for an unknown bookmark", async () => {
+    await page("/bookmarks/999/edit", 404);
   });
 });

@@ -1,12 +1,22 @@
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
 import { readSignals, requireDatastar, sse } from "../datastar";
-import { EMPTY_BOOKMARK, findBookmarkByUrl, saveBookmark, tagNamesOf, toFields } from "../db/bookmarks";
+import {
+  type BookmarkRow,
+  EMPTY_BOOKMARK,
+  findBookmarkByUrl,
+  getBookmark,
+  saveBookmark,
+  tagNamesOf,
+  toFields,
+} from "../db/bookmarks";
 import { suggestTags } from "../db/tags";
 import { isHttpUrl } from "../lib/url";
 import { fetchPageMetadata } from "../services/metadata";
 import { BookmarkForm, ClosePage, EMPTY_FORM, type FormValues, TagSuggestions, UrlHint } from "../views/bookmark_form";
 import { formFields } from "./form";
+
+const MAX_SUGGESTIONS = 10;
 
 /** The posted form: the URL trimmed, `tagNames` split from the space-separated field, flags by presence. */
 async function readForm(c: Context<AppEnv>): Promise<{ values: FormValues; tagNames: string[]; autoClose: boolean }> {
@@ -15,29 +25,39 @@ async function readForm(c: Context<AppEnv>): Promise<{ values: FormValues; tagNa
   return { values, tagNames: f.tags.split(/\s+/), autoClose: !!f.auto_close };
 }
 
+/** The form as the Bookmark fills it. */
+function formValues(sql: SqlStorage, row: BookmarkRow): FormValues {
+  const { url, title, description, notes, unread } = toFields(row);
+  return { url, title, description, notes, unread, tags: tagNamesOf(sql, row.id).join(" ") };
+}
+
+const formPage = (c: Context<AppEnv>, action: string, values: FormValues, rest: { autoClose?: boolean; error?: string } = {}) => (
+  <BookmarkForm
+    user={c.get("user")}
+    title={action === "/bookmarks/new" ? "New bookmark" : "Edit bookmark"}
+    action={action}
+    values={values}
+    {...rest}
+  />
+);
+
+/** A signal as text; the client is not trusted to send strings. */
+const text = (signal: unknown): string => (typeof signal === "string" ? signal : "");
+
 export const bookmarkForm = new Hono<AppEnv>();
 
 bookmarkForm.get("/bookmarks/new", (c) => {
   const query = c.req.query();
   const values: FormValues = { ...EMPTY_FORM };
   for (const key of ["url", "title", "description", "notes", "tags"] as const) values[key] = query[key] ?? "";
-  return c.html(
-    <BookmarkForm
-      user={c.get("user")}
-      title="New bookmark"
-      action="/bookmarks/new"
-      values={values}
-      autoClose={"auto_close" in query}
-    />,
-  );
+  return c.html(formPage(c, "/bookmarks/new", values, { autoClose: "auto_close" in query }));
 });
 
 /** Creates the Bookmark, or updates the one that already has the URL, and moves on to the list or the close page. */
 bookmarkForm.post("/bookmarks/new", async (c) => {
   const { values, tagNames, autoClose } = await readForm(c);
   if (!isHttpUrl(values.url)) {
-    const form = <BookmarkForm user={c.get("user")} title="New bookmark" action="/bookmarks/new" values={values} autoClose={autoClose} error="Enter a valid URL." />;
-    return c.html(form, 400);
+    return c.html(formPage(c, "/bookmarks/new", values, { autoClose, error: "Enter a valid URL." }), 400);
   }
   const sql = c.get("sql");
   const existing = findBookmarkByUrl(sql, values.url);
@@ -47,9 +67,6 @@ bookmarkForm.post("/bookmarks/new", async (c) => {
 });
 
 bookmarkForm.get("/bookmarks/close", (c) => c.html(<ClosePage />));
-
-/** A signal as text; the client is not trusted to send strings. */
-const text = (signal: unknown): string => (typeof signal === "string" ? signal : "");
 
 /**
  * Patches `#url-hint` with the duplicate notice when the URL is bookmarked, filling every form signal from that
@@ -63,9 +80,8 @@ bookmarkForm.get("/bookmarks/check", requireDatastar, async (c) => {
     const existing = isHttpUrl(url) ? findBookmarkByUrl(sql, url) : null;
     stream.patchElements(String(<UrlHint id={existing?.id} />));
     if (existing) {
-      const { title, description, notes, unread } = toFields(existing);
-      const tags = tagNamesOf(sql, existing.id).join(" ");
-      stream.patchSignals(JSON.stringify({ title, description, notes, tags, unread }));
+      const { url: _, ...fields } = formValues(sql, existing);
+      stream.patchSignals(JSON.stringify(fields));
       return;
     }
     if (!isHttpUrl(url)) return;
@@ -79,8 +95,6 @@ bookmarkForm.get("/bookmarks/check", requireDatastar, async (c) => {
   });
 });
 
-const MAX_SUGGESTIONS = 10;
-
 /** Patches `#tag-suggestions` with the names completing the last typed token, none when that token is empty. */
 bookmarkForm.get("/bookmarks/tags/suggest", requireDatastar, async (c) => {
   const typed = text((await readSignals(c)).tags);
@@ -90,4 +104,27 @@ bookmarkForm.get("/bookmarks/tags/suggest", requireDatastar, async (c) => {
   return sse((stream) => {
     stream.patchElements(String(<TagSuggestions typed={typed} names={names} />));
   });
+});
+
+const EDIT_PATH = "/bookmarks/:id{[0-9]+}/edit";
+
+bookmarkForm.get(EDIT_PATH, (c) => {
+  const sql = c.get("sql");
+  const row = getBookmark(sql, Number(c.req.param("id")));
+  return row ? c.html(formPage(c, c.req.path, formValues(sql, row))) : c.notFound();
+});
+
+/** Replaces the Bookmark's fields and tags; its URL may move only onto one no other Bookmark has. */
+bookmarkForm.post(EDIT_PATH, async (c) => {
+  // The only await before storage is touched, so the lookups below cannot interleave with another request.
+  const { values, tagNames } = await readForm(c);
+  const sql = c.get("sql");
+  const existing = getBookmark(sql, Number(c.req.param("id")));
+  if (!existing) return c.notFound();
+  const reject = (error: string) => c.html(formPage(c, c.req.path, values, { error }), 400);
+  if (!isHttpUrl(values.url)) return reject("Enter a valid URL.");
+  const owner = findBookmarkByUrl(sql, values.url);
+  if (owner && owner.id !== existing.id) return reject("A bookmark with this URL already exists.");
+  saveBookmark(sql, { ...toFields(existing), ...values, tags: tagNames }, new Date().toISOString(), existing.id);
+  return c.redirect("/bookmarks");
 });
