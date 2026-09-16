@@ -32,6 +32,7 @@ export const BookmarkForm: FC<{
 }> = ({ user, title, action, values, autoClose, error }) => (
   <Layout title={title} user={user}>
     <ErrorMessage message={error} />
+    {/* DEBT(#27/W1): Datastar rewrites @name( even inside these JSON string literals, so a value holding text like @Component( fails to compile and the form's live behaviors never start. */}
     <form method="post" action={action} data-signals={JSON.stringify(values)} data-init="$url && @get('/bookmarks/check')">
       {autoClose && <input type="hidden" name="auto_close" value="1" />}
       <label>
@@ -85,6 +86,7 @@ export const TagSuggestions: FC<{ typed: string; names: string[] }> = ({ typed, 
   <div id="tag-suggestions">
     {names.map((name) => (
       // JSON.stringify writes the JavaScript string literal, escaping quotes, backslashes and control characters.
+      // DEBT(#27/W2): String.replace reads $&, $', $`, $$ and $<n> in a tag name as patterns, so such a name completes wrongly.
       <button type="button" data-on:click={`$tags = ${JSON.stringify(`${typed.replace(/\S*$/, name)} `)}`}>
         {name}
       </button>
