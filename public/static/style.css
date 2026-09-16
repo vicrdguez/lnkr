@@ -8,6 +8,13 @@ button { margin-top: 1rem; padding: 0.4rem 1rem; }
 main > form:not(.search) { max-width: 40rem; }
 .active { font-weight: bold; }
 .error { color: light-dark(#b00020, #ff6b6b); }
+textarea { display: block; width: 100%; padding: 0.4rem; margin-top: 0.25rem; font: inherit; }
+label.checkbox input { display: inline; width: auto; }
+.hint { margin-top: 0.25rem; font-size: 0.875rem; }
+.hint:empty { display: none; }
+#tag-suggestions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+#tag-suggestions button { margin-top: 0.25rem; padding: 0.1rem 0.5rem; }
+.edit { font-size: 0.875rem; }
 
 /* Search and sort */
 form.search { display: flex; gap: 0.5rem; align-items: center; }

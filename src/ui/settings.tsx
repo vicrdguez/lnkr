@@ -6,9 +6,17 @@ import { updatePassword, type User } from "../db/users";
 import { ErrorMessage, Field, Layout } from "../views/layout";
 import { formFields } from "./form";
 
-const SettingsPage = ({ user, token, error }: { user: User; token: string; error?: string }) => (
+/** Opens the new-bookmark form for the current page in a window that closes itself once saved. */
+const bookmarklet = (origin: string) =>
+  `javascript:window.open('${origin}/bookmarks/new?url='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)+'&auto_close')`;
+
+const SettingsPage = ({ user, token, origin, error }: { user: User; token: string; origin: string; error?: string }) => (
   <Layout title="Settings" user={user} section="settings">
     <ErrorMessage message={error} />
+    <h2>Bookmarklet</h2>
+    <p>
+      Drag this link to your bookmarks bar: <a href={bookmarklet(origin)}>Save to lnkr</a>
+    </p>
     <h2>API token</h2>
     <p>
       <code id="api-token">{token}</code>
@@ -30,7 +38,7 @@ const SettingsPage = ({ user, token, error }: { user: User; token: string; error
 const settingsPage = (c: Context<AppEnv>, error?: string) => {
   const sql = c.get("sql");
   const token = currentToken(sql) ?? createToken(sql, new Date().toISOString());
-  return <SettingsPage user={c.get("user")} token={token} error={error} />;
+  return <SettingsPage user={c.get("user")} token={token} origin={new URL(c.req.url).origin} error={error} />;
 };
 
 export const settings = new Hono<AppEnv>();

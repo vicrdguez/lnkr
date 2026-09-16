@@ -144,6 +144,9 @@ const BookmarkItem: FC<{ row: BookmarkRow; tags: string[]; link: LinkTo; now: nu
       rel="noopener"
     >
       {relativeDate(row.date_added, now)}
+    </a>{" "}
+    <a class="edit" href={`/bookmarks/${row.id}/edit`}>
+      Edit
     </a>
   </li>
 );

@@ -317,3 +317,34 @@ describe("Edit bookmark", () => {
     await page("/bookmarks/999/edit", 404);
   });
 });
+
+describe("Entry points", () => {
+  /** The `href` of the first link whose text is `text`, or undefined when there is none. */
+  const link = async (html: string, selector: string, text: string) =>
+    (await select(html, selector)).find((a) => a.text === text)?.attrs.href;
+
+  it("offers the bookmarklet on the settings page", async () => {
+    const href = (await select(await page("/settings"), "a")).map((a) => a.attrs.href).find((h) => h?.startsWith("javascript:"));
+
+    expect(href).toContain("https://lnkr.test/bookmarks/new?url=");
+    expect(href).toContain("encodeURIComponent(location.href)");
+    expect(href).toContain("document.title");
+    expect(href).toContain("auto_close");
+  });
+
+  it("links to the form from the list", async () => {
+    const { id } = await create("https://example.com/x");
+
+    const html = await page("/bookmarks");
+
+    expect(await link(html, "nav a", "Add bookmark")).toBe("/bookmarks/new");
+    expect(await link(html, "#bookmark-list li a", "Edit")).toBe(`/bookmarks/${id}/edit`);
+  });
+
+  it("needs a session", async () => {
+    const response = await get("/bookmarks/new");
+
+    expect(response.status).toBe(302);
+    expect(location(response).href).toBe(`${BASE}/login?next=%2Fbookmarks%2Fnew`);
+  });
+});

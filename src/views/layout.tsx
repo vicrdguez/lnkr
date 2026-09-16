@@ -35,6 +35,7 @@ export const Layout: FC<PropsWithChildren<{ title: string; user?: User | null; s
               <a href="/bookmarks/archived" {...current(section === "archived")}>
                 Archived
               </a>
+              <a href="/bookmarks/new">Add bookmark</a>
               <a href="/settings" {...current(section === "settings")}>
                 Settings
               </a>
