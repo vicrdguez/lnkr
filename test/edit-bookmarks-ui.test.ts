@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { api, apiToken, formPost, get, select, setupTenant } from "./helpers";
+import { api, apiToken, BASE, formPost, get, location, select, setupTenant } from "./helpers";
 
 type Json = Record<string, unknown>;
 
@@ -59,5 +59,60 @@ describe("New bookmark form", () => {
     const [autoClose] = await select(html, 'form input[name="auto_close"]');
     expect(autoClose.attrs.type).toBe("hidden");
     expect(await signalsOf(html)).toEqual({ ...expected, unread: false });
+  });
+});
+
+describe("Saving a new bookmark", () => {
+  const listed = async () => (await api(token).get("/api/bookmarks/")).json<{ count: number; results: Json[] }>();
+
+  it("creates the bookmark and redirects to the list", async () => {
+    const fields = { url: "https://example.com/x", title: "X", description: "Desc", notes: "N", tags: "a b", unread: "on" };
+
+    const response = await formPost("/bookmarks/new", fields, { cookie });
+
+    expect(response.status).toBe(302);
+    expect(location(response).href).toBe(`${BASE}/bookmarks`);
+    const { count, results } = await listed();
+    expect(count).toBe(1);
+    expect(results[0]).toMatchObject({
+      url: "https://example.com/x",
+      title: "X",
+      description: "Desc",
+      notes: "N",
+      tag_names: ["a", "b"],
+      unread: true,
+    });
+  });
+
+  it("ends on the close page with auto_close", async () => {
+    const response = await formPost("/bookmarks/new", { url: "https://example.com/x", auto_close: "1" }, { cookie });
+
+    expect(response.status).toBe(302);
+    expect(location(response).href).toBe(`${BASE}/bookmarks/close`);
+    const html = await page("/bookmarks/close");
+    expect(html).toContain("You can now close this window");
+    expect(html).toContain("window.close()");
+  });
+
+  it("updates the bookmark that already has the URL", async () => {
+    await create("https://example.com/x", { title: "Old", tag_names: ["old"] });
+
+    const response = await formPost("/bookmarks/new", { url: "https://example.com/x", title: "New", tags: "new" }, { cookie });
+
+    expect(response.status).toBe(302);
+    expect(location(response).href).toBe(`${BASE}/bookmarks`);
+    const { count, results } = await listed();
+    expect(count).toBe(1);
+    expect(results[0]).toMatchObject({ title: "New", tag_names: ["new"] });
+  });
+
+  it.each(["", "nope", "ftp://x.y/"])("refuses the URL %j", async (url) => {
+    const response = await formPost("/bookmarks/new", { url, title: "T" }, { cookie });
+
+    expect(response.status).toBe(400);
+    const html = await response.text();
+    expect(html).toContain("Enter a valid URL");
+    expect(await fieldValues(html)).toMatchObject({ url, title: "T" });
+    expect((await listed()).count).toBe(0);
   });
 });

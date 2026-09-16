@@ -76,6 +76,16 @@ export function updateBookmark(sql: SqlStorage, id: number, fields: BookmarkFiel
     .one();
 }
 
+export type BookmarkInput = BookmarkFields & { tags: string[] };
+
+/** Inserts the bookmark, or replaces every field of bookmark `existingId`, and sets its tags. */
+export function saveBookmark(sql: SqlStorage, input: BookmarkInput, now: string, existingId?: number): BookmarkRow {
+  const { tags, ...fields } = input;
+  const row = existingId === undefined ? insertBookmark(sql, fields, now) : updateBookmark(sql, existingId, fields, now);
+  setTags(sql, row.id, tags, now);
+  return row;
+}
+
 /** Deletes the bookmark and its tag attachments; false when no such bookmark. */
 export function deleteBookmark(sql: SqlStorage, id: number): boolean {
   sql.exec("DELETE FROM bookmark_tags WHERE bookmark_id = ?", id);
