@@ -161,6 +161,10 @@ describe("Bulk bar", () => {
     expect(inputs.find((input) => input.attrs["data-bind"] === "selectAcross")?.attrs.type).toBe("checkbox");
     const labels = await select(html, "#bulk-bar label");
     expect(labels.map((label) => label.text.trim())).toContain("Select all");
+    // Select across shows only while the whole page is selected and disarms itself the moment it no longer is.
+    const across = labels.find((label) => label.text.includes("Select across"));
+    expect(across?.attrs["data-show"]).toBe("$selected.b2 && $selected.b1");
+    expect(across?.attrs["data-effect"]).toBe("($selected.b2 && $selected.b1) || ($selectAcross = false)");
     const checkboxes = await select(html, '#bulk-bar label input[type="checkbox"]');
     expect(checkboxes.map((box) => box.attrs["data-on:change"] ?? box.attrs["data-bind"])).toEqual([
       expect.stringContaining("$selected = {b2: evt.target.checked, b1: evt.target.checked}"),

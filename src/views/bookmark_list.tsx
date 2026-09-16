@@ -34,6 +34,7 @@ const pathOf = (archived: boolean) => (archived ? "/bookmarks/archived" : "/book
 const linkTo = ({ archived, params }: Listing): LinkTo => (changes) => pageUrl(pathOf(archived), params, changes);
 
 /** The signals the page declares: its query as the actions post it back, the page kind, and an empty selection. */
+// DEBT(#28/W3): Datastar rewrites @name( even inside this JSON's string literals, so a search holding text like @Component( leaves the page's signals undeclared and its actions post without them.
 const pageSignals = ({ q, sort, unread, page, archived }: Listing): string =>
   JSON.stringify({ q, sort, unread: unread ? "yes" : "", page, archived, selected: {}, selectAcross: false, bulkTags: "", action: "" });
 
@@ -67,6 +68,7 @@ export const BookmarkPage: FC<{ user: User } & Listing> = ({ user, ...listing })
 };
 
 /** What an action patches, concatenated: the list and the sidebar, and after a bulk action the bulk bar; Datastar morphs each by id. */
+// DEBT(#28/W2): a per-item action leaves the bulk bar's item keys, the pagination nav and the empty message as first rendered, so they disagree with the list until a reload.
 export const ListFragments: FC<Listing & { bulkBar: boolean }> = ({ bulkBar, ...listing }) => {
   const link = linkTo(listing);
   return (
@@ -115,7 +117,8 @@ const BulkBar: FC<Listing> = ({ archived, items }) => {
         <input type="checkbox" data-on:change={`$selected = {${keys.map((key) => `${key}: evt.target.checked`).join(", ")}}`} />{" "}
         Select all
       </label>
-      <label data-show={allSelected}>
+      {/* Hiding leaves a bound checkbox's signal as it was, so the effect disarms Select across once the page is no longer fully selected. */}
+      <label data-show={allSelected} data-effect={`(${allSelected}) || ($selectAcross = false)`}>
         <input type="checkbox" data-bind="selectAcross" /> Select across all pages
       </label>
       <button type="button" data-on:click={bulk(archived ? "unarchive" : "archive")}>
