@@ -145,7 +145,7 @@ const BookmarkItem: FC<{ row: BookmarkRow; tags: string[]; link: LinkTo; now: nu
     >
       {relativeDate(row.date_added, now)}
     </a>{" "}
-    <a class="edit" href={`/bookmarks/${row.id}/edit`}>
+    <a class="edit" href={`/bookmarks/${row.id}/edit`} aria-label={`Edit ${row.title || row.url}`}>
       Edit
     </a>
   </li>

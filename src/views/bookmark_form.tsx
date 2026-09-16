@@ -1,10 +1,20 @@
-import { raw } from "hono/html";
 import type { FC } from "hono/jsx";
 import type { User } from "../db/users";
-import { ErrorMessage, Layout } from "./layout";
+import { DOCTYPE, ErrorMessage, Layout } from "./layout";
 
-/** The form's fields as typed, also the Datastar signals the form declares; `tags` is space-separated. */
-export type FormValues = { url: string; title: string; description: string; notes: string; tags: string; unread: boolean };
+/**
+ * The form's fields as typed, also the Datastar signals the form declares; `tags` is space-separated and `id` is
+ * the Bookmark being edited, absent on the new form.
+ */
+export type FormValues = {
+  url: string;
+  title: string;
+  description: string;
+  notes: string;
+  tags: string;
+  unread: boolean;
+  id?: number;
+};
 
 export const EMPTY_FORM: FormValues = { url: "", title: "", description: "", notes: "", tags: "", unread: false };
 
@@ -60,7 +70,7 @@ export const BookmarkForm: FC<{
 
 /** The notice under the URL field; empty unless the URL belongs to Bookmark `id`. */
 export const UrlHint: FC<{ id?: number }> = ({ id }) => (
-  <div id="url-hint" class="hint">
+  <div id="url-hint" class="hint" role="status">
     {id !== undefined && (
       <>
         This URL is already bookmarked. The form has been filled from the existing bookmark.{" "}
@@ -74,20 +84,18 @@ export const UrlHint: FC<{ id?: number }> = ({ id }) => (
 export const TagSuggestions: FC<{ typed: string; names: string[] }> = ({ typed, names }) => (
   <div id="tag-suggestions">
     {names.map((name) => (
-      <button type="button" data-on:click={`$tags = '${jsString(`${typed.replace(/\S*$/, name)} `)}'`}>
+      // JSON.stringify writes the JavaScript string literal, escaping quotes, backslashes and control characters.
+      <button type="button" data-on:click={`$tags = ${JSON.stringify(`${typed.replace(/\S*$/, name)} `)}`}>
         {name}
       </button>
     ))}
   </div>
 );
 
-/** `text` as the body of a single-quoted JavaScript string literal. */
-const jsString = (text: string): string => text.replace(/[\\']/g, "\\$&");
-
 /** The page an `auto_close` save lands on: the project's only inline script closes the window. */
 export const ClosePage: FC = () => (
   <>
-    {raw("<!doctype html>")}
+    {DOCTYPE}
     <html lang="en">
       <head>
         <meta charset="utf-8" />

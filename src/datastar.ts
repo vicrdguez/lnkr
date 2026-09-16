@@ -13,6 +13,9 @@ export async function readSignals(c: Context): Promise<Record<string, unknown>> 
   return result.success ? result.signals : {};
 }
 
-/** A `text/event-stream` response whose events `fn` writes; the stream closes when `fn` returns. */
+/**
+ * A `text/event-stream` response whose events `fn` writes; the stream closes when `fn` returns. The 200 is sent
+ * before `fn` runs, so an error thrown inside it ends the stream early instead of changing the status.
+ */
 export const sse = (fn: (stream: ServerSentEventGenerator) => Promise<void> | void): Response =>
   ServerSentEventGenerator.stream(fn);

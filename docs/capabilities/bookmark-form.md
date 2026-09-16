@@ -3,7 +3,7 @@
 A person adds a Bookmark by hand or from the bookmarklet, and edits any Bookmark's fields and Tags, in one form that checks the URL and suggests Tags while they type.
 
 ## Behaviors
-- `/bookmarks/new` shows the form: URL, title, description, Notes, Tags separated by spaces, and an Unread checkbox. Query parameters prefill every field, so the bookmarklet and a share target can hand over a page; `auto_close` in the query rides along as a hidden field.
+- `/bookmarks/new` shows the form: URL, title, description, Notes, Tags separated by spaces, and an Unread checkbox. Query parameters prefill the URL, title, description, Notes and Tags, so the bookmarklet and a share target can hand over a page; `auto_close` in the query rides along as a hidden field.
 - Saving a valid `http` or `https` URL creates the Bookmark with the given fields and Tags, creating Tags that do not exist yet, and returns to the list. A URL that is already bookmarked updates that Bookmark instead of adding a second one. With `auto_close`, saving lands on a page that closes its own window.
 - An invalid or empty URL is refused with the form shown again, the typed values kept and nothing saved.
 - While the URL is typed, or on load when it arrives prefilled, the page asks the server about it. A URL that is already bookmarked shows a notice with a link to edit that Bookmark and fills every field from it. A new URL fills only an empty title and description from the page's metadata, leaving typed values alone; an unreachable page fills nothing.

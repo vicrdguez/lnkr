@@ -221,10 +221,22 @@ describe("URL check", () => {
     expect(requests).toBe(0);
   });
 
-  it("needs the Datastar header", async () => {
-    const response = await action("/bookmarks/check", { url: "https://example.com/" }, {});
+  it("only warns on the edit form", async () => {
+    const { id } = await create("https://example.com/x", { title: "X" });
+    const other = await create("https://example.com/y", { title: "Y" });
 
-    expect(response.status).toBe(400);
+    const own = await events("/bookmarks/check", { ...empty, id, url: "https://example.com/x" });
+    expect((await select(patchedElements(own), "#url-hint"))[0].text).toBe("");
+    expect(patchedSignals(own)).toBeUndefined();
+
+    const taken = await events("/bookmarks/check", { ...empty, id, url: "https://example.com/y", title: "Mine" });
+    expect((await select(patchedElements(taken), "#url-hint a"))[0].attrs.href).toBe(`/bookmarks/${other.id}/edit`);
+    expect(patchedSignals(taken)).toBeUndefined();
+  });
+
+  it("needs the Datastar header", async () => {
+    expect((await action("/bookmarks/check", { url: "https://example.com/" }, {})).status).toBe(400);
+    expect((await action("/bookmarks/tags/suggest", { tags: "a" }, {})).status).toBe(400);
   });
 });
 
@@ -264,9 +276,9 @@ describe("Tag suggestions", () => {
     const buttons = await suggest("rust py");
 
     expect(buttons.map((button) => button.attrs["data-on:click"])).toEqual([
-      "$tags = 'rust Pyramid '",
-      "$tags = 'rust pytest '",
-      "$tags = 'rust python '",
+      '$tags = "rust Pyramid "',
+      '$tags = "rust pytest "',
+      '$tags = "rust python "',
     ]);
   });
 });
@@ -288,7 +300,7 @@ describe("Edit bookmark", () => {
     expect(await fieldValues(html)).toMatchObject({ url: "https://example.com/x", title: "X", notes: "N", tags: "a b" });
     const [unread] = await select(html, 'main form input[name="unread"]');
     expect(unread.attrs.checked).toBeDefined();
-    expect(await signalsOf(html)).toMatchObject({ url: "https://example.com/x", title: "X", notes: "N", tags: "a b", unread: true });
+    expect(await signalsOf(html)).toMatchObject({ id, url: "https://example.com/x", title: "X", notes: "N", tags: "a b", unread: true });
   });
 
   it("saves the changes", async () => {
@@ -346,5 +358,7 @@ describe("Entry points", () => {
 
     expect(response.status).toBe(302);
     expect(location(response).href).toBe(`${BASE}/login?next=%2Fbookmarks%2Fnew`);
+    expect(location(await get("/bookmarks/1/edit")).pathname).toBe("/login");
+    expect(location(await formPost("/bookmarks/new", { url: "https://example.com/" })).pathname).toBe("/login");
   });
 });

@@ -28,18 +28,16 @@ async function readForm(c: Context<AppEnv>): Promise<{ values: FormValues; tagNa
 /** The form as the Bookmark fills it. */
 function formValues(sql: SqlStorage, row: BookmarkRow): FormValues {
   const { url, title, description, notes, unread } = toFields(row);
-  return { url, title, description, notes, unread, tags: tagNamesOf(sql, row.id).join(" ") };
+  return { id: row.id, url, title, description, notes, unread, tags: tagNamesOf(sql, row.id).join(" ") };
 }
 
-const formPage = (c: Context<AppEnv>, action: string, values: FormValues, rest: { autoClose?: boolean; error?: string } = {}) => (
-  <BookmarkForm
-    user={c.get("user")}
-    title={action === "/bookmarks/new" ? "New bookmark" : "Edit bookmark"}
-    action={action}
-    values={values}
-    {...rest}
-  />
-);
+const formPage = (
+  c: Context<AppEnv>,
+  title: string,
+  action: string,
+  values: FormValues,
+  rest: { autoClose?: boolean; error?: string } = {},
+) => <BookmarkForm user={c.get("user")} title={title} action={action} values={values} {...rest} />;
 
 /** A signal as text; the client is not trusted to send strings. */
 const text = (signal: unknown): string => (typeof signal === "string" ? signal : "");
@@ -50,14 +48,14 @@ bookmarkForm.get("/bookmarks/new", (c) => {
   const query = c.req.query();
   const values: FormValues = { ...EMPTY_FORM };
   for (const key of ["url", "title", "description", "notes", "tags"] as const) values[key] = query[key] ?? "";
-  return c.html(formPage(c, "/bookmarks/new", values, { autoClose: "auto_close" in query }));
+  return c.html(formPage(c, "New bookmark", "/bookmarks/new", values, { autoClose: "auto_close" in query }));
 });
 
 /** Creates the Bookmark, or updates the one that already has the URL, and moves on to the list or the close page. */
 bookmarkForm.post("/bookmarks/new", async (c) => {
   const { values, tagNames, autoClose } = await readForm(c);
   if (!isHttpUrl(values.url)) {
-    return c.html(formPage(c, "/bookmarks/new", values, { autoClose, error: "Enter a valid URL." }), 400);
+    return c.html(formPage(c, "New bookmark", "/bookmarks/new", values, { autoClose, error: "Enter a valid URL." }), 400);
   }
   const sql = c.get("sql");
   const existing = findBookmarkByUrl(sql, values.url);
@@ -69,22 +67,24 @@ bookmarkForm.post("/bookmarks/new", async (c) => {
 bookmarkForm.get("/bookmarks/close", (c) => c.html(<ClosePage />));
 
 /**
- * Patches `#url-hint` with the duplicate notice when the URL is bookmarked, filling every form signal from that
- * Bookmark; otherwise clears the hint and fills only an empty title and description from the page's metadata.
+ * Patches `#url-hint` with the duplicate notice when another Bookmark has the URL, filling every form signal from
+ * it on the new form; otherwise clears the hint and fills only an empty title and description from the page's
+ * metadata. The edit form sends its Bookmark's `id`, so its own URL is no duplicate and a duplicate only warns.
  */
 bookmarkForm.get("/bookmarks/check", requireDatastar, async (c) => {
   const sql = c.get("sql");
   const signals = await readSignals(c);
   const url = text(signals.url).trim();
+  const editing = typeof signals.id === "number" ? signals.id : undefined;
   return sse(async (stream) => {
     const existing = isHttpUrl(url) ? findBookmarkByUrl(sql, url) : null;
-    stream.patchElements(String(<UrlHint id={existing?.id} />));
-    if (existing) {
-      const { url: _, ...fields } = formValues(sql, existing);
-      stream.patchSignals(JSON.stringify(fields));
-      return;
+    const duplicate = existing && existing.id !== editing ? existing : null;
+    stream.patchElements(String(<UrlHint id={duplicate?.id} />));
+    if (duplicate && editing === undefined) {
+      const { title, description, notes, tags, unread } = formValues(sql, duplicate);
+      stream.patchSignals(JSON.stringify({ title, description, notes, tags, unread }));
     }
-    if (!isHttpUrl(url)) return;
+    if (existing || !isHttpUrl(url)) return;
     const page = await fetchPageMetadata(url);
     const patch: Record<string, string> = {};
     for (const key of ["title", "description"] as const) {
@@ -111,7 +111,7 @@ const EDIT_PATH = "/bookmarks/:id{[0-9]+}/edit";
 bookmarkForm.get(EDIT_PATH, (c) => {
   const sql = c.get("sql");
   const row = getBookmark(sql, Number(c.req.param("id")));
-  return row ? c.html(formPage(c, c.req.path, formValues(sql, row))) : c.notFound();
+  return row ? c.html(formPage(c, "Edit bookmark", c.req.path, formValues(sql, row))) : c.notFound();
 });
 
 /** Replaces the Bookmark's fields and tags; its URL may move only onto one no other Bookmark has. */
@@ -121,7 +121,8 @@ bookmarkForm.post(EDIT_PATH, async (c) => {
   const sql = c.get("sql");
   const existing = getBookmark(sql, Number(c.req.param("id")));
   if (!existing) return c.notFound();
-  const reject = (error: string) => c.html(formPage(c, c.req.path, values, { error }), 400);
+  const reject = (error: string) =>
+    c.html(formPage(c, "Edit bookmark", c.req.path, { ...values, id: existing.id }, { error }), 400);
   if (!isHttpUrl(values.url)) return reject("Enter a valid URL.");
   const owner = findBookmarkByUrl(sql, values.url);
   if (owner && owner.id !== existing.id) return reject("A bookmark with this URL already exists.");
