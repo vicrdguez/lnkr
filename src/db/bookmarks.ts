@@ -98,6 +98,51 @@ export function setArchived(sql: SqlStorage, id: number, archived: boolean, now:
   );
 }
 
+/** `IN (...)` over ids bound as one JSON array, so any number of them fits the parameter limit. */
+const IN_IDS = "IN (SELECT value FROM json_each(?))";
+
+export function bulkSetArchived(sql: SqlStorage, ids: number[], archived: boolean, now: string): void {
+  sql.exec(`UPDATE bookmarks SET is_archived = ?, date_modified = ? WHERE id ${IN_IDS}`, +archived, now, JSON.stringify(ids));
+}
+
+export function bulkSetUnread(sql: SqlStorage, ids: number[], unread: boolean, now: string): void {
+  sql.exec(`UPDATE bookmarks SET unread = ?, date_modified = ? WHERE id ${IN_IDS}`, +unread, now, JSON.stringify(ids));
+}
+
+/** Deletes the bookmarks and their tag attachments. */
+export function bulkDelete(sql: SqlStorage, ids: number[]): void {
+  const list = JSON.stringify(ids);
+  sql.exec(`DELETE FROM bookmark_tags WHERE bookmark_id ${IN_IDS}`, list);
+  sql.exec(`DELETE FROM bookmarks WHERE id ${IN_IDS}`, list);
+}
+
+/** Attaches every one of `names` to each bookmark, creating tags that do not exist yet; other tags stay. */
+export function bulkAddTags(sql: SqlStorage, ids: number[], names: string[], now: string): void {
+  const wanted = normalizeTagNames(names);
+  if (!wanted.length) return;
+  const list = JSON.stringify(ids);
+  for (const name of wanted) {
+    sql.exec(
+      `INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id) SELECT value, ? FROM json_each(?)`,
+      ensureTag(sql, name, now).id, list,
+    );
+  }
+  sql.exec(`UPDATE bookmarks SET date_modified = ? WHERE id ${IN_IDS}`, now, list);
+}
+
+/** Detaches the tags named in `names`, regardless of case, from each bookmark; other tags stay. */
+export function bulkRemoveTags(sql: SqlStorage, ids: number[], names: string[], now: string): void {
+  const wanted = normalizeTagNames(names);
+  if (!wanted.length) return;
+  const list = JSON.stringify(ids);
+  sql.exec(
+    `DELETE FROM bookmark_tags WHERE bookmark_id ${IN_IDS}
+     AND tag_id IN (SELECT t.id FROM tags t WHERE EXISTS (SELECT 1 FROM json_each(?) WHERE value = t.name COLLATE NOCASE))`,
+    list, JSON.stringify(wanted),
+  );
+  sql.exec(`UPDATE bookmarks SET date_modified = ? WHERE id ${IN_IDS}`, now, list);
+}
+
 /** Replaces the bookmark's tags wholesale, creating tags that do not exist yet. */
 export function setTags(sql: SqlStorage, id: number, names: string[], now: string): void {
   sql.exec("DELETE FROM bookmark_tags WHERE bookmark_id = ?", id);
@@ -133,6 +178,8 @@ export type ListFilter = {
   search?: SearchFilter;
   modifiedSince?: string;
   addedSince?: string;
+  /** Only these ids, however many. */
+  ids?: number[];
 };
 
 /** The `WHERE` over the alias `b` for `filter`, shared by the list, its count and the tag sidebar so they never disagree. */
@@ -140,16 +187,24 @@ function whereFor(filter: ListFilter): { where: string; params: (string | number
   const search = filter.search ?? MATCH_ALL;
   // Absent date filters compare against "", which every ISO timestamp exceeds.
   const conditions = ["b.is_archived = ?", search.where, "b.date_modified >= ?", "b.date_added >= ?"];
+  const params = [+filter.archived, ...search.params, filter.modifiedSince ?? "", filter.addedSince ?? ""];
   if (filter.unread) conditions.push("b.unread = 1");
-  return {
-    where: `WHERE ${conditions.join(" AND ")}`,
-    params: [+filter.archived, ...search.params, filter.modifiedSince ?? "", filter.addedSince ?? ""],
-  };
+  if (filter.ids) {
+    conditions.push(`b.id ${IN_IDS}`);
+    params.push(JSON.stringify(filter.ids));
+  }
+  return { where: `WHERE ${conditions.join(" AND ")}`, params };
 }
 
 export function countBookmarks(sql: SqlStorage, filter: ListFilter): number {
   const { where, params } = whereFor(filter);
   return sql.exec<{ n: number }>(`SELECT count(*) AS n FROM bookmarks b ${where}`, ...params).one().n;
+}
+
+/** The id of every bookmark matching `filter`. */
+export function idsMatching(sql: SqlStorage, filter: ListFilter): number[] {
+  const { where, params } = whereFor(filter);
+  return sql.exec<{ id: number }>(`SELECT b.id FROM bookmarks b ${where}`, ...params).toArray().map((row) => row.id);
 }
 
 export type PageOptions = ListFilter & { limit: number; offset: number; sort?: ListSort };

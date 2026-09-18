@@ -22,6 +22,12 @@ export function formPost(path: string, fields: Record<string, string>, options: 
   return request(path, { method: "POST", headers, body: new URLSearchParams(fields).toString() }, options);
 }
 
+/** A JSON POST as Datastar sends one: `application/json` with `body` serialised. */
+export function jsonPost(path: string, body: unknown, options: Options = {}): Promise<Response> {
+  const headers = { "content-type": "application/json" };
+  return request(path, { method: "POST", headers, body: JSON.stringify(body) }, options);
+}
+
 export function login(username: string, password: string, options?: Options): Promise<Response> {
   return formPost("/login", { username, password }, options);
 }
@@ -86,6 +92,24 @@ export function api(token?: string) {
 /** Serves `html` as `text/html` at `url` for the rest of the test. */
 export function mockPage(url: string, html: string): void {
   network.use(http.get(url, () => HttpResponse.html(html)));
+}
+
+export type SseEvent = { event: string; data: Record<string, string> };
+
+/** The events of an SSE body: each block's `event:` name and its `data: <key> <value>` lines joined per key. */
+export function parseSse(text: string): SseEvent[] {
+  return text
+    .split("\n\n")
+    .filter(Boolean)
+    .map((block) => {
+      const [first, ...rest] = block.split("\n");
+      const data: Record<string, string> = {};
+      for (const line of rest) {
+        const [, key, value] = line.match(/^data: (\S+) ?(.*)$/) ?? [];
+        if (key) data[key] = key in data ? `${data[key]}\n${value}` : value;
+      }
+      return { event: first.replace("event: ", ""), data };
+    });
 }
 
 export type Found = { attrs: Record<string, string>; text: string };

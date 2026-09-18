@@ -15,6 +15,6 @@ A person browses the Tenant's Bookmarks in the web app: the active list and the 
 <!-- DEBT(#27/W3): stale since #27: the nav also has Add bookmark, every item has an Edit link, and creating and editing from the UI moved into bookmark-form.md. -->
 
 ## Out of scope
-- Creating, editing, archiving or deleting from the UI; bulk actions
+- Creating and editing from the UI
 - Display preferences: items per page, description modes, date display, link target, Tag grouping are fixed
 - Preview images, Snapshots, Bundles, keyboard shortcuts
