@@ -9,7 +9,7 @@ export class Tenant extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     ctx.storage.transactionSync(() => runMigrations(ctx.storage.sql));
-    this.app = createApp({ sql: ctx.storage.sql });
+    this.app = createApp({ sql: ctx.storage.sql, transaction: (closure) => ctx.storage.transactionSync(closure) });
   }
 
   async fetch(request: Request): Promise<Response> {
