@@ -1,7 +1,9 @@
 import { runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { api, BASE, formPost, get, location, select, setupTenant } from "./helpers";
+import { api, apiToken, BASE, formPost, get, location, select, setupTenant } from "./helpers";
+
+type Json = Record<string, unknown>;
 
 let cookie: string;
 
@@ -108,5 +110,109 @@ describe("Feed token", () => {
     const first = await feedUrls(await page("/settings"));
 
     expect(await feedUrls(await page("/settings"))).toEqual(first);
+  });
+});
+
+/** The `<item>` bodies of an RSS document in order. */
+const items = (xml: string): string[] => [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map((match) => match[1]);
+
+/** The text of the first `<name>` element in `xml`, or undefined when there is none. */
+const element = (xml: string, name: string): string | undefined => xml.match(new RegExp(`<${name}>([^<]*)</${name}>`))?.[1];
+
+describe("RSS feeds", () => {
+  let feedToken: string;
+  let token: string;
+
+  beforeEach(async () => {
+    token = await apiToken(cookie);
+    const [all] = await feedUrls(await page("/settings"));
+    feedToken = all.match(/\/feeds\/([0-9a-f]{40})\/all$/)?.[1] as string;
+    vi.setSystemTime(new Date("2026-09-01T00:00:00.000Z"));
+    await create("https://a.test/", { title: "A", unread: true });
+    vi.setSystemTime(new Date("2026-09-02T00:00:00.000Z"));
+    await create("https://b.test/", { title: "B", description: "About B" });
+    vi.setSystemTime(new Date("2026-09-03T00:00:00.000Z"));
+    await create("https://c.test/", { title: "C", unread: true, is_archived: true });
+  });
+
+  /** Creates a bookmark through the API without touching the network. */
+  async function create(url: string, fields: Json = {}): Promise<void> {
+    expect((await api(token).post("/api/bookmarks/?disable_scraping", { url, ...fields })).status).toBe(201);
+  }
+
+  /** GETs the feed `kind` for the Tenant's feed token, without cookies. */
+  const feed = (kind: string, query = "") => get(`/feeds/${feedToken}/${kind}${query}`);
+
+  /** The body of the feed `kind`, expecting 200. */
+  async function feedXml(kind: string, query = ""): Promise<string> {
+    const response = await feed(kind, query);
+    expect(response.status).toBe(200);
+    return response.text();
+  }
+
+  const titles = (xml: string) => items(xml).map((item) => element(item, "title"));
+
+  it("lists active bookmarks newest first as RSS 2.0", async () => {
+    const response = await feed("all");
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/rss+xml; charset=utf-8");
+    const xml = await response.text();
+    expect(xml).toMatch(/^<\?xml version="1.0" encoding="UTF-8"\?>\s*<rss version="2.0">\s*<channel>/);
+    expect(element(xml, "title")).toBe("All bookmarks");
+    const fields = ["title", "link", "description", "pubDate"];
+    expect(items(xml).map((item) => fields.map((name) => element(item, name)))).toEqual([
+      ["B", "https://b.test/", "About B", "Wed, 02 Sep 2026 00:00:00 GMT"],
+      ["A", "https://a.test/", "", "Tue, 01 Sep 2026 00:00:00 GMT"],
+    ]);
+    expect(xml).not.toContain("https://c.test/");
+  });
+
+  it("lists only active unread bookmarks on the unread feed", async () => {
+    expect(titles(await feedXml("unread"))).toEqual(["A"]);
+  });
+
+  it("filters with the search grammar through q", async () => {
+    await create("https://d.test/", { title: "D", tag_names: ["docs"] });
+
+    expect(titles(await feedXml("all", "?q=%23docs"))).toEqual(["D"]);
+  });
+
+  it("caps the items with limit", async () => {
+    expect(titles(await feedXml("all", "?limit=1"))).toEqual(["B"]);
+  });
+
+  it("serves at most 100 items by default", async () => {
+    for (let n = 0; n < 99; n++) await create(`https://many.test/${n}`);
+
+    expect(items(await feedXml("all"))).toHaveLength(100);
+  });
+
+  it("answers 404 for an unknown token", async () => {
+    expect((await get(`/feeds/${"0".repeat(40)}/all`)).status).toBe(404);
+  });
+
+  it.each<[string, number]>([
+    ["all", 200],
+    ["unread", 200],
+    ["shared", 404],
+    ["other", 404],
+  ])("answers %s for the %s feed", async (kind, status) => {
+    expect((await feed(kind)).status).toBe(status);
+  });
+
+  it("escapes text", async () => {
+    await create("https://tom.test/", { title: "Tom & Jerry <3", description: "a > b" });
+
+    const xml = await feedXml("all");
+
+    expect(xml).toContain("<title>Tom &amp; Jerry &lt;3</title>");
+    expect(xml).toContain("<description>a &gt; b</description>");
+  });
+
+  it("titles a bookmark without a title by its URL", async () => {
+    await create("https://e.test/", { title: "" });
+
+    expect(titles(await feedXml("all"))[0]).toBe("https://e.test/");
   });
 });

@@ -10,6 +10,7 @@ import { auth } from "./ui/auth";
 import { bookmarkActions } from "./ui/bookmark_actions";
 import { bookmarkForm } from "./ui/bookmark_form";
 import { bookmarkPages } from "./ui/bookmarks";
+import { feeds } from "./ui/feeds";
 import { settings } from "./ui/settings";
 
 export type AppDeps = { sql: SqlStorage };
@@ -25,6 +26,8 @@ export function createApp({ sql }: AppDeps): Hono<AppEnv> {
   });
   // Mounted before the UI middleware: every /api path ends here, so csrf and requireSession never run on it.
   app.route("/api", api);
+  // Likewise the feeds: their token stands in for the session.
+  app.route("/", feeds);
   app.use(csrf());
   app.use(requireSession);
 

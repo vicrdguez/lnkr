@@ -35,3 +35,7 @@ export function getOrCreateFeedToken(sql: SqlStorage, now: string): string {
   sql.exec("INSERT INTO feed_tokens (key, created) VALUES (?, ?)", key, now);
   return key;
 }
+
+export function feedTokenExists(sql: SqlStorage, key: string): boolean {
+  return sql.exec("SELECT 1 FROM feed_tokens WHERE key = ?", key).toArray().length > 0;
+}
