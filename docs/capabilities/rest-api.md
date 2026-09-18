@@ -3,7 +3,7 @@
 A client such as the linkding browser extension presents the Tenant's API token to save, look up and tag Bookmarks over linkding's REST API, so links gathered in the browser land in lnkr.
 
 ## Behaviors
-- The settings page shows the Tenant's API token, creating one on first view; Regenerate replaces it and the old token stops working.
+- A client authenticates with one of the Tenant's API tokens, created and revoked by name on the settings page as the API tokens capability describes.
 - Every `/api/` request needs `Authorization: Token <key>`; a missing token, an unknown token, or a session cookie alone is refused with linkding's error shape.
 - Creating a Bookmark takes linkding's fields and Tag names and answers with linkding's document; Tag names are trimmed, deduplicated regardless of case, and created when missing. A URL that already exists updates that Bookmark instead of duplicating it.
 - An empty title or description is filled from the Page metadata unless scraping is disabled; a page that cannot be fetched leaves them empty. Only `http` and `https` URLs are accepted.
@@ -18,5 +18,5 @@ A client such as the linkding browser extension presents the Tenant's API token 
 ## Out of scope
 - Filtering by Bundle, lax Tag search, sort options and relevance ranking
 - Auto-tagging rules, favicons, preview images, Snapshots and Assets, Web Archive links
-- Named or multiple API tokens, Feed tokens
+- Feed tokens and RSS feeds, which the feeds capability covers
 - URL normalisation beyond trimming whitespace
