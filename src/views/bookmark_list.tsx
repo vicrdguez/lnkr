@@ -3,6 +3,7 @@ import { type BookmarkRow, LIST_SORTS, type ListSort } from "../db/bookmarks";
 import type { User } from "../db/users";
 import { absoluteDate, archiveTimestamp, relativeDate } from "../lib/dates";
 import { pageUrl, tagsIn, withoutTag, withTag } from "../lib/query";
+import { faviconUrl } from "../services/favicons";
 import { current, Layout } from "./layout";
 
 /** Builds a link to this page with the query changed; see `pageUrl`. */
@@ -23,6 +24,8 @@ export type Listing = {
   /** The message shown instead of items when there are none. */
   empty: string | null;
   now: number;
+  /** The favicon provider's URL template, or null when the Favicons preference is off. */
+  favicons: string | null;
 };
 
 const SORT_LABELS: Record<ListSort, string> = {
@@ -32,8 +35,8 @@ const SORT_LABELS: Record<ListSort, string> = {
   title_desc: "Title Z–A",
 };
 
-export const BookmarkPage: FC<{ user: User } & Listing> = ({ user, archived, path, params, items, empty, now, ...rest }) => {
-  const { q, sort, unread, page, pages, tags } = rest;
+export const BookmarkPage: FC<{ user: User } & Listing> = ({ user, archived, path, params, items, empty, ...rest }) => {
+  const { q, sort, unread, page, pages, tags, now, favicons } = rest;
   const link: LinkTo = (changes) => pageUrl(path, params, changes);
   return (
     <Layout
@@ -57,7 +60,7 @@ export const BookmarkPage: FC<{ user: User } & Listing> = ({ user, archived, pat
           {empty && <p class="empty">{empty}</p>}
           <ul id="bookmark-list">
             {items.map(({ row, tags }) => (
-              <BookmarkItem row={row} tags={tags} link={link} now={now} />
+              <BookmarkItem row={row} tags={tags} link={link} now={now} favicons={favicons} />
             ))}
           </ul>
           <Pagination page={page} pages={pages} link={link} />
@@ -115,8 +118,15 @@ const Sidebar: FC<{ tags: Listing["tags"]; q: string; link: LinkTo }> = ({ tags,
   );
 };
 
-const BookmarkItem: FC<{ row: BookmarkRow; tags: string[]; link: LinkTo; now: number }> = ({ row, tags, link, now }) => (
+const BookmarkItem: FC<{ row: BookmarkRow; tags: string[]; link: LinkTo; now: number; favicons: string | null }> = ({
+  row,
+  tags,
+  link,
+  now,
+  favicons,
+}) => (
   <li id={`bookmark-${row.id}`} class={row.unread ? "unread" : undefined}>
+    <Favicon src={favicons && faviconUrl(favicons, row.url)} />
     <a class="title" href={row.url} target="_blank" rel="noopener">
       {row.title || row.url}
     </a>
@@ -150,3 +160,7 @@ const BookmarkItem: FC<{ row: BookmarkRow; tags: string[]; link: LinkTo; now: nu
     </a>
   </li>
 );
+
+/** The site's icon from the provider, loaded by the browser; nothing when icons are off or the URL has no origin. */
+const Favicon: FC<{ src: string | null }> = ({ src }) =>
+  src ? <img class="favicon" src={src} alt="" width="16" height="16" loading="lazy" /> : null;

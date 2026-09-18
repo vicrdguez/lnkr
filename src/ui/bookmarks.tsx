@@ -1,6 +1,7 @@
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
 import { countBookmarks, LIST_SORTS, selectBookmarks, tagCounts, tagNamesFor } from "../db/bookmarks";
+import { readPrefs } from "../prefs";
 import { compileSearch, MATCH_NONE } from "../search";
 import { BookmarkPage } from "../views/bookmark_list";
 
@@ -35,6 +36,7 @@ const listPage = (archived: boolean) => (c: Context<AppEnv>) => {
       tags={tagCounts(sql, filter)}
       empty={count ? null : countBookmarks(sql, { archived }) ? "No bookmarks found" : "No bookmarks yet"}
       now={Date.now()}
+      favicons={readPrefs(c.get("user")).enable_favicons ? c.env.LD_FAVICON_PROVIDER : null}
     />,
   );
 };
