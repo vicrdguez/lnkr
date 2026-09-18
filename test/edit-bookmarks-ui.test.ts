@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { api, apiToken, BASE, formPost, get, location, mockPage, select, setupTenant } from "./helpers";
+import { api, apiToken, BASE, formPost, get, location, mockPage, parseSse, select, setupTenant, type SseEvent } from "./helpers";
 import { network } from "./network";
 
 type Json = Record<string, unknown>;
@@ -42,24 +42,6 @@ const DATASTAR = { "datastar-request": "true" };
 /** Calls a Datastar GET action the way the client does: signals as JSON in `datastar`, plus the header. */
 const action = (path: string, signals: Json, headers: Record<string, string> = DATASTAR) =>
   get(`${path}?datastar=${encodeURIComponent(JSON.stringify(signals))}`, { cookie, headers });
-
-type SseEvent = { event: string; data: Record<string, string> };
-
-/** The events of an SSE body: each block's `event:` name and its `data: <key> <value>` lines joined per key. */
-function parseSse(text: string): SseEvent[] {
-  return text
-    .split("\n\n")
-    .filter(Boolean)
-    .map((block) => {
-      const [first, ...rest] = block.split("\n");
-      const data: Record<string, string> = {};
-      for (const line of rest) {
-        const [, key, value] = line.match(/^data: (\S+) ?(.*)$/) ?? [];
-        if (key) data[key] = key in data ? `${data[key]}\n${value}` : value;
-      }
-      return { event: first.replace("event: ", ""), data };
-    });
-}
 
 /** The action's events, expecting an SSE response. */
 async function events(path: string, signals: Json): Promise<SseEvent[]> {

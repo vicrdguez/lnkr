@@ -1,6 +1,6 @@
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
-import { readSignals, requireDatastar, sse } from "../datastar";
+import { readSignals, requireDatastar, sse, text } from "../datastar";
 import {
   type BookmarkRow,
   EMPTY_BOOKMARK,
@@ -39,9 +39,6 @@ const formPage = (
   rest: { autoClose?: boolean; error?: string } = {},
 ) => <BookmarkForm user={c.get("user")} title={title} action={action} values={values} {...rest} />;
 
-/** A signal as text; the client is not trusted to send strings. */
-const text = (signal: unknown): string => (typeof signal === "string" ? signal : "");
-
 export const bookmarkForm = new Hono<AppEnv>();
 
 bookmarkForm.get("/bookmarks/new", (c) => {
@@ -73,7 +70,7 @@ bookmarkForm.get("/bookmarks/close", (c) => c.html(<ClosePage />));
  */
 bookmarkForm.get("/bookmarks/check", requireDatastar, async (c) => {
   const sql = c.get("sql");
-  const signals = await readSignals(c);
+  const signals = (await readSignals(c)) ?? {};
   const url = text(signals.url).trim();
   const editing = typeof signals.id === "number" ? signals.id : undefined;
   return sse(async (stream) => {
@@ -97,7 +94,7 @@ bookmarkForm.get("/bookmarks/check", requireDatastar, async (c) => {
 
 /** Patches `#tag-suggestions` with the names completing the last typed token, none when that token is empty. */
 bookmarkForm.get("/bookmarks/tags/suggest", requireDatastar, async (c) => {
-  const typed = text((await readSignals(c)).tags);
+  const typed = text((await readSignals(c))?.tags);
   const tokens = typed.split(/\s+/);
   const prefix = tokens.pop() ?? "";
   const names = prefix ? suggestTags(c.get("sql"), prefix, tokens, MAX_SUGGESTIONS) : [];

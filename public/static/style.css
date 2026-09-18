@@ -38,3 +38,10 @@ form.search input[type="search"] { flex: 1; }
 #sidebar ul { list-style: none; padding: 0; margin: 0; }
 #sidebar .selected { font-weight: bold; }
 #sidebar .count { opacity: 0.6; }
+
+/* Per-item actions and the bulk bar */
+#bulk-bar, .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+#bulk-bar { margin-bottom: 0.5rem; }
+#bulk-bar label { display: inline; margin: 0; }
+#bulk-bar input, #bookmark-list input[type="checkbox"] { display: inline; width: auto; margin: 0; }
+#bulk-bar button, .actions button { margin: 0; padding: 0.1rem 0.5rem; }
