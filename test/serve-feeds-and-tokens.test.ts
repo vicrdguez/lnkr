@@ -126,7 +126,7 @@ describe("RSS feeds", () => {
   beforeEach(async () => {
     token = await apiToken(cookie);
     const [all] = await feedUrls(await page("/settings"));
-    feedToken = all.match(/\/feeds\/([0-9a-f]{40})\/all$/)?.[1] as string;
+    feedToken = new URL(all).pathname.split("/")[2];
     vi.setSystemTime(new Date("2026-09-01T00:00:00.000Z"));
     await create("https://a.test/", { title: "A", unread: true });
     vi.setSystemTime(new Date("2026-09-02T00:00:00.000Z"));
@@ -188,8 +188,8 @@ describe("RSS feeds", () => {
     expect(items(await feedXml("all"))).toHaveLength(100);
   });
 
-  it("answers 404 for an unknown token", async () => {
-    expect((await get(`/feeds/${"0".repeat(40)}/all`)).status).toBe(404);
+  it.each([`/feeds/${"0".repeat(40)}/all`, "/feeds/all", "/feeds//all"])("answers 404 without a known token at %s", async (path) => {
+    expect((await get(path)).status).toBe(404);
   });
 
   it.each<[string, number]>([
@@ -197,12 +197,12 @@ describe("RSS feeds", () => {
     ["unread", 200],
     ["shared", 404],
     ["other", 404],
-  ])("answers %s for the %s feed", async (kind, status) => {
+  ])("the %s feed answers %i", async (kind, status) => {
     expect((await feed(kind)).status).toBe(status);
   });
 
-  it("escapes text", async () => {
-    await create("https://tom.test/", { title: "Tom & Jerry <3", description: "a > b" });
+  it("escapes text and drops control characters", async () => {
+    await create("https://tom.test/", { title: "Tom & Jerry <3", description: "a > b\u0001" });
 
     const xml = await feedXml("all");
 

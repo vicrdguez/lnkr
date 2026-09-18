@@ -3,6 +3,7 @@ const randomKey = (): string =>
   Array.from(crypto.getRandomValues(new Uint8Array(20)), (byte) => byte.toString(16).padStart(2, "0")).join("");
 
 /** An API token as the settings page lists it: never with its key. `id` is the row's rowid. */
+// DEBT(#11/A2): a rowid is reused once the newest row is deleted, so a stale Revoke form can delete a token created since; give api_tokens an INTEGER PRIMARY KEY if that bites.
 export type ApiToken = { id: number; name: string; created: string };
 
 /** Every API token, oldest first. */
@@ -23,7 +24,7 @@ export function deleteApiToken(sql: SqlStorage, id: number): void {
   sql.exec("DELETE FROM api_tokens WHERE rowid = ?", id);
 }
 
-export function hasToken(sql: SqlStorage, key: string): boolean {
+export function apiTokenExists(sql: SqlStorage, key: string): boolean {
   return sql.exec("SELECT 1 FROM api_tokens WHERE key = ?", key).toArray().length > 0;
 }
 

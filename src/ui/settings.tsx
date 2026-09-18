@@ -84,7 +84,7 @@ settings.post("/settings/tokens", async (c) => {
   return c.html(settingsPage(c, { newToken: key }));
 });
 
-settings.post("/settings/tokens/:id/revoke", (c) => {
+settings.post("/settings/tokens/:id{[0-9]+}/revoke", (c) => {
   deleteApiToken(c.get("sql"), Number(c.req.param("id")));
   return c.redirect("/settings");
 });

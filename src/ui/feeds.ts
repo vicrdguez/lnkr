@@ -9,17 +9,17 @@ import { compileSearch, MATCH_NONE } from "../search";
 const KINDS = { all: "All bookmarks", unread: "Unread bookmarks" };
 export type FeedKind = keyof typeof KINDS;
 
-const isKind = (kind: string): kind is FeedKind => Object.hasOwn(KINDS, kind);
-
+/** The characters XML text cannot carry as they are: the four markup characters by reference, C0 controls dropped. */
 const REFERENCES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
+const UNSAFE = /[&<>"\x00-\x08\x0B\x0C\x0E-\x1F]/g;
 
-/** `text` with `&`, `<`, `>` and `"` as character references, so it sits inside any element or attribute. */
-const xmlEscape = (text: string): string => text.replace(/[&<>"]/g, (character) => REFERENCES[character]);
+const xmlEscape = (text: string): string => text.replace(UNSAFE, (character) => REFERENCES[character] ?? "");
 
+/** `<name>` holding `text`, escaped. */
 const element = (name: string, text: string): string => `<${name}>${xmlEscape(text)}</${name}>`;
 
-/** RSS 2.0 for `items` in the order given; a Bookmark without a title is titled by its URL. */
-export function renderRss(kind: FeedKind, origin: string, items: BookmarkRow[]): string {
+/** RSS 2.0 for `rows` in the order given; a Bookmark without a title is titled by its URL. */
+export function renderRss(kind: FeedKind, origin: string, rows: BookmarkRow[]): string {
   const title = KINDS[kind];
   const lines = [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -28,7 +28,7 @@ export function renderRss(kind: FeedKind, origin: string, items: BookmarkRow[]):
     element("title", title),
     element("link", `${origin}/bookmarks`),
     element("description", title),
-    ...items.flatMap((row) => [
+    ...rows.flatMap((row) => [
       "<item>",
       element("title", row.title || row.url),
       element("link", row.url),
@@ -46,10 +46,10 @@ export function renderRss(kind: FeedKind, origin: string, items: BookmarkRow[]):
 /** The Tenant's feeds, reachable with the feed token alone: no session and no CSRF. */
 export const feeds = new Hono<AppEnv>();
 
-feeds.get("/feeds/:token/:kind", (c) => {
-  const kind = c.req.param("kind");
+feeds.get("/feeds/:token/:kind{all|unread}", (c) => {
+  const kind = c.req.param("kind") as FeedKind;
   const sql = c.get("sql");
-  if (!isKind(kind) || !feedTokenExists(sql, c.req.param("token"))) return c.notFound();
+  if (!feedTokenExists(sql, c.req.param("token"))) return c.notFound();
   const rows = selectBookmarks(sql, {
     archived: false,
     unread: kind === "unread",
@@ -61,3 +61,5 @@ feeds.get("/feeds/:token/:kind", (c) => {
   const xml = renderRss(kind, new URL(c.req.url).origin, rows);
   return c.body(xml, 200, { "content-type": "application/rss+xml; charset=utf-8" });
 });
+// Every other /feeds path, a missing token or an unknown kind included, ends here rather than at the login redirect.
+feeds.all("/feeds/*", (c) => c.notFound());
