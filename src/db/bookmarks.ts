@@ -172,6 +172,11 @@ export type ListSort = keyof typeof ORDER;
 /** Every sort name, the default `added_desc` first. */
 export const LIST_SORTS = Object.keys(ORDER) as ListSort[];
 
+/** Every bookmark, active and archived, oldest first. */
+export function allBookmarks(sql: SqlStorage): BookmarkRow[] {
+  return sql.exec<BookmarkRow>(`SELECT b.* FROM bookmarks b ORDER BY ${ORDER.added_asc}`).toArray();
+}
+
 export type ListFilter = {
   archived: boolean;
   unread?: boolean;

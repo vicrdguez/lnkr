@@ -1,9 +1,11 @@
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
 import { hashPassword, verifyPassword } from "../auth/password";
+import { allBookmarks, tagNamesFor, toFields } from "../db/bookmarks";
 import { createToken, currentToken, deleteTokens } from "../db/tokens";
 import { updatePassword, type User } from "../db/users";
 import { readPrefs, writePrefs } from "../prefs";
+import { renderNetscape } from "../services/netscape";
 import { ErrorMessage, Field, Layout } from "../views/layout";
 import { formFields } from "./form";
 
@@ -36,6 +38,10 @@ const SettingsPage = ({ user, token, origin, error }: { user: User; token: strin
       </p>
       <button>Save</button>
     </form>
+    <h2>Export</h2>
+    <p>
+      <a href="/settings/export">Download bookmarks.html</a>, the Netscape bookmark file linkding and browsers read.
+    </p>
     <h2>Change password</h2>
     <form method="post" action="/settings/password">
       <Field label="Current password" name="current" type="password" autocomplete="current-password" />
@@ -56,6 +62,23 @@ const settingsPage = (c: Context<AppEnv>, error?: string) => {
 export const settings = new Hono<AppEnv>();
 
 settings.get("/settings", (c) => c.html(settingsPage(c)));
+
+/** Every Bookmark, oldest first, as a linkding-compatible Netscape file. */
+settings.get("/settings/export", (c) => {
+  const sql = c.get("sql");
+  const rows = allBookmarks(sql);
+  const tags = tagNamesFor(sql, rows.map((row) => row.id));
+  const entries = rows.map((row) => ({
+    ...toFields(row),
+    tags: tags.get(row.id) ?? [],
+    dateAdded: row.date_added,
+    dateModified: row.date_modified,
+  }));
+  return c.body(renderNetscape(entries), 200, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Content-Disposition": 'attachment; filename="bookmarks.html"',
+  });
+});
 
 settings.post("/settings/token/regenerate", (c) => {
   const sql = c.get("sql");

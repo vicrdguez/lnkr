@@ -22,6 +22,12 @@ export function formPost(path: string, fields: Record<string, string>, options: 
   return request(path, { method: "POST", headers, body: new URLSearchParams(fields).toString() }, options);
 }
 
+/** A multipart POST of `form`, as a browser submits a file upload. */
+export function filePost(path: string, form: FormData, options: Options = {}): Promise<Response> {
+  const headers = { origin: options.origin ?? options.base ?? BASE };
+  return request(path, { method: "POST", headers, body: form }, options);
+}
+
 /** A JSON POST as Datastar sends one: `application/json` with `body` serialised. */
 export function jsonPost(path: string, body: unknown, options: Options = {}): Promise<Response> {
   const headers = { "content-type": "application/json" };
@@ -64,7 +70,7 @@ export function location(response: Response): URL {
 
 function request(
   path: string,
-  init: { method?: string; headers?: Record<string, string>; body?: string },
+  init: { method?: string; headers?: Record<string, string>; body?: BodyInit },
   { cookie, base = BASE, headers: extra }: Options,
 ): Promise<Response> {
   const headers = { ...init.headers, ...extra };
