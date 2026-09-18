@@ -1,21 +1,26 @@
-/** The Tenant's API token, or null when none has been created yet. */
-export function currentToken(sql: SqlStorage): string | null {
-  return sql.exec<{ key: string }>("SELECT key FROM api_tokens LIMIT 1").toArray()[0]?.key ?? null;
-}
-
 /** 20 random bytes as 40 lowercase hex characters, the shape of every token. */
 const randomKey = (): string =>
   Array.from(crypto.getRandomValues(new Uint8Array(20)), (byte) => byte.toString(16).padStart(2, "0")).join("");
 
-/** Stores and returns a fresh token. */
-export function createToken(sql: SqlStorage, now: string): string {
-  const key = randomKey();
-  sql.exec("INSERT INTO api_tokens (key, created) VALUES (?, ?)", key, now);
-  return key;
+/** An API token as the settings page lists it: never with its key. `id` is the row's rowid. */
+export type ApiToken = { id: number; name: string; created: string };
+
+/** Every API token, oldest first. */
+export function listApiTokens(sql: SqlStorage): ApiToken[] {
+  return sql.exec<ApiToken>("SELECT rowid AS id, name, created FROM api_tokens ORDER BY created, rowid").toArray();
 }
 
-export function deleteTokens(sql: SqlStorage): void {
-  sql.exec("DELETE FROM api_tokens");
+/** Stores a fresh token named `name` and returns it with its key, the only time the key leaves storage. */
+export function createApiToken(sql: SqlStorage, name: string, now: string): { id: number; key: string } {
+  const key = randomKey();
+  const { id } = sql
+    .exec<{ id: number }>("INSERT INTO api_tokens (key, name, created) VALUES (?, ?, ?) RETURNING rowid AS id", key, name, now)
+    .one();
+  return { id, key };
+}
+
+export function deleteApiToken(sql: SqlStorage, id: number): void {
+  sql.exec("DELETE FROM api_tokens WHERE rowid = ?", id);
 }
 
 export function hasToken(sql: SqlStorage, key: string): boolean {

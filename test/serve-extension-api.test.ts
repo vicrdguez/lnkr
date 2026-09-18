@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import pkg from "../package.json";
-import { api, apiToken, formPost, get, location, mockPage, setupTenant } from "./helpers";
+import { api, apiToken, get, mockPage, setupTenant } from "./helpers";
 import { network } from "./network";
 
 type Json = Record<string, unknown>;
@@ -25,25 +25,6 @@ async function create(fields: Json): Promise<Json> {
 async function getBookmark(id: unknown): Promise<Json> {
   return (await api(token).get(`/api/bookmarks/${id}/`)).json<Json>();
 }
-
-describe("API token on the settings page", () => {
-  it("is created on first view", async () => {
-    expect(token).toMatch(/^[0-9a-f]{40}$/);
-    expect((await api(token).get("/api/user/profile/")).status).toBe(200);
-  });
-
-  it("is replaced by Regenerate", async () => {
-    const response = await formPost("/settings/token/regenerate", {}, { cookie });
-
-    expect(response.status).toBe(302);
-    expect(location(response).pathname).toBe("/settings");
-    const replacement = await apiToken(cookie);
-    expect(replacement).toMatch(/^[0-9a-f]{40}$/);
-    expect(replacement).not.toBe(token);
-    expect((await api(replacement).get("/api/user/profile/")).status).toBe(200);
-    expect((await api(token).get("/api/user/profile/")).status).toBe(401);
-  });
-});
 
 describe("API authentication", () => {
   it("refuses a missing token", async () => {
