@@ -3,7 +3,7 @@ import { updatePrefs, type User } from "./db/users";
 /** The Tenant's preferences, kept as JSON in `users.prefs`; a missing or malformed field takes its default. */
 export type Prefs = { enable_favicons: boolean };
 
-/** The user's preferences; a document that does not parse counts as empty. */
+/** The Tenant's preferences; a document that does not parse counts as empty. */
 export function readPrefs(user: User): Prefs {
   return { enable_favicons: stored(user.prefs).enable_favicons === true };
 }

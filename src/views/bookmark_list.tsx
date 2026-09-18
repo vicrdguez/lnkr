@@ -25,7 +25,7 @@ export type Listing = {
   empty: string | null;
   now: number;
   /** The favicon provider's URL template, or null when the Favicons preference is off. */
-  favicons: string | null;
+  faviconProvider: string | null;
 };
 
 const SORT_LABELS: Record<ListSort, string> = {
@@ -36,7 +36,7 @@ const SORT_LABELS: Record<ListSort, string> = {
 };
 
 export const BookmarkPage: FC<{ user: User } & Listing> = ({ user, archived, path, params, items, empty, ...rest }) => {
-  const { q, sort, unread, page, pages, tags, now, favicons } = rest;
+  const { q, sort, unread, page, pages, tags, now, faviconProvider } = rest;
   const link: LinkTo = (changes) => pageUrl(path, params, changes);
   return (
     <Layout
@@ -60,7 +60,7 @@ export const BookmarkPage: FC<{ user: User } & Listing> = ({ user, archived, pat
           {empty && <p class="empty">{empty}</p>}
           <ul id="bookmark-list">
             {items.map(({ row, tags }) => (
-              <BookmarkItem row={row} tags={tags} link={link} now={now} favicons={favicons} />
+              <BookmarkItem row={row} tags={tags} link={link} now={now} faviconProvider={faviconProvider} />
             ))}
           </ul>
           <Pagination page={page} pages={pages} link={link} />
@@ -118,15 +118,15 @@ const Sidebar: FC<{ tags: Listing["tags"]; q: string; link: LinkTo }> = ({ tags,
   );
 };
 
-const BookmarkItem: FC<{ row: BookmarkRow; tags: string[]; link: LinkTo; now: number; favicons: string | null }> = ({
+const BookmarkItem: FC<{ row: BookmarkRow; tags: string[]; link: LinkTo; now: number; faviconProvider: string | null }> = ({
   row,
   tags,
   link,
   now,
-  favicons,
+  faviconProvider,
 }) => (
   <li id={`bookmark-${row.id}`} class={row.unread ? "unread" : undefined}>
-    <Favicon src={favicons && faviconUrl(favicons, row.url)} />
+    <Favicon src={faviconProvider && faviconUrl(faviconProvider, row.url)} />
     <a class="title" href={row.url} target="_blank" rel="noopener">
       {row.title || row.url}
     </a>

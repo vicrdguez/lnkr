@@ -36,7 +36,7 @@ const listPage = (archived: boolean) => (c: Context<AppEnv>) => {
       tags={tagCounts(sql, filter)}
       empty={count ? null : countBookmarks(sql, { archived }) ? "No bookmarks found" : "No bookmarks yet"}
       now={Date.now()}
-      favicons={readPrefs(c.get("user")).enable_favicons ? c.env.LD_FAVICON_PROVIDER : null}
+      faviconProvider={readPrefs(c.get("user")).enable_favicons ? c.env.LD_FAVICON_PROVIDER : null}
     />,
   );
 };
