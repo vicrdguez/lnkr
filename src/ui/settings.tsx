@@ -1,7 +1,7 @@
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
 import { hashPassword, verifyPassword } from "../auth/password";
-import { createToken, currentToken, deleteTokens } from "../db/tokens";
+import { createToken, currentToken, deleteTokens, getOrCreateFeedToken } from "../db/tokens";
 import { updatePassword, type User } from "../db/users";
 import { ErrorMessage, Field, Layout } from "../views/layout";
 import { formFields } from "./form";
@@ -10,7 +10,9 @@ import { formFields } from "./form";
 const bookmarklet = (origin: string) =>
   `javascript:window.open('${origin}/bookmarks/new?url='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)+'&auto_close')`;
 
-const SettingsPage = ({ user, token, origin, error }: { user: User; token: string; origin: string; error?: string }) => (
+type SettingsProps = { user: User; token: string; feedToken: string; origin: string; error?: string };
+
+const SettingsPage = ({ user, token, feedToken, origin, error }: SettingsProps) => (
   <Layout title="Settings" user={user} section="settings">
     <ErrorMessage message={error} />
     <h2>Bookmarklet</h2>
@@ -24,6 +26,11 @@ const SettingsPage = ({ user, token, origin, error }: { user: User; token: strin
     <form method="post" action="/settings/token/regenerate">
       <button>Regenerate</button>
     </form>
+    <h2>Feeds</h2>
+    <p>
+      <a id="feed-all" href={`${origin}/feeds/${feedToken}/all`}>All bookmarks</a> ·{" "}
+      <a id="feed-unread" href={`${origin}/feeds/${feedToken}/unread`}>Unread bookmarks</a>
+    </p>
     <h2>Change password</h2>
     <form method="post" action="/settings/password">
       <Field label="Current password" name="current" type="password" autocomplete="current-password" />
@@ -34,11 +41,15 @@ const SettingsPage = ({ user, token, origin, error }: { user: User; token: strin
   </Layout>
 );
 
-/** The settings page with the Tenant's token, created on first view. */
+/** The settings page with the Tenant's tokens, created on first view. */
 const settingsPage = (c: Context<AppEnv>, error?: string) => {
   const sql = c.get("sql");
-  const token = currentToken(sql) ?? createToken(sql, new Date().toISOString());
-  return <SettingsPage user={c.get("user")} token={token} origin={new URL(c.req.url).origin} error={error} />;
+  const now = new Date().toISOString();
+  const token = currentToken(sql) ?? createToken(sql, now);
+  const feedToken = getOrCreateFeedToken(sql, now);
+  return (
+    <SettingsPage user={c.get("user")} token={token} feedToken={feedToken} origin={new URL(c.req.url).origin} error={error} />
+  );
 };
 
 export const settings = new Hono<AppEnv>();
