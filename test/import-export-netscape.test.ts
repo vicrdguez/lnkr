@@ -242,3 +242,13 @@ describe("Import", () => {
     expect((await filePost("/settings/import", new FormData(), { cookie })).status).toBe(400);
   });
 });
+
+describe("Round trip", () => {
+  it("exports an imported fixture byte for byte", async () => {
+    await imported(fixture, true);
+
+    const response = await get("/settings/export", { cookie });
+
+    expect(await response.text()).toBe(fixture);
+  });
+});
