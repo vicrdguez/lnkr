@@ -23,14 +23,14 @@ An export link on the settings page that downloads the Tenant's Bookmarks in lin
 - Export filtering by search or tag
 
 ## Definition of Done
-- [ ] Export downloads a file in linkding's exact format with one entry per Bookmark, oldest first, including archived ones.
-- [ ] Unread, Archived, tags, description and Notes survive an export followed by an import into a fresh Tenant.
-- [ ] Importing a linkding export creates Bookmarks with the file's dates, tags, read state, archive state, description and Notes.
-- [ ] Importing a file whose URLs already exist updates those Bookmarks, merges tags and creates no duplicates.
-- [ ] On import the private flag is ignored unless the mapping option is on, in which case `PRIVATE="0"` marks the Bookmark Shared; on export a Shared Bookmark writes `PRIVATE="0"` and any other `PRIVATE="1"`.
-- [ ] Invalid URLs are skipped and reported; the rest of the file imports.
-- [ ] The result page shows the created, updated and skipped counts.
-- [ ] HTML entities in titles, descriptions and Notes are decoded on import and encoded on export.
+- [x] Export downloads a file in linkding's exact format with one entry per Bookmark, oldest first, including archived ones.
+- [x] Unread, Archived, tags, description and Notes survive an export followed by an import into a fresh Tenant.
+- [x] Importing a linkding export creates Bookmarks with the file's dates, tags, read state, archive state, description and Notes.
+- [x] Importing a file whose URLs already exist updates those Bookmarks, merges tags and creates no duplicates.
+- [x] On import the private flag is ignored unless the mapping option is on, in which case `PRIVATE="0"` marks the Bookmark Shared; on export a Shared Bookmark writes `PRIVATE="0"` and any other `PRIVATE="1"`.
+- [x] Invalid URLs are skipped and reported; the rest of the file imports.
+- [x] The result page shows the created, updated and skipped counts.
+- [x] HTML entities in titles, descriptions and Notes are decoded on import and encoded on export.
 
 ## Manual verification
 - [ ] Export from a real linkding instance, import into lnkr under `wrangler dev`, export from lnkr, import that file back into linkding and compare counts and a few entries.
