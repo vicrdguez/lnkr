@@ -47,6 +47,10 @@ export const migrations: string[] = [
     name TEXT NOT NULL DEFAULT '',
     created TEXT NOT NULL
   );`,
+  `CREATE TABLE feed_tokens (
+    key TEXT PRIMARY KEY,
+    created TEXT NOT NULL
+  );`,
 ];
 
 /** Applies every pending migration; safe to run again. */

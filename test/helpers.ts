@@ -72,11 +72,11 @@ function request(
   return exports.default.fetch(new URL(path, base), { ...init, headers, redirect: "manual" });
 }
 
-/** The API token shown on `/settings` for the session `cookie`. */
-export async function apiToken(cookie: string): Promise<string> {
-  const html = await (await get("/settings", { cookie })).text();
-  const token = html.match(/<code id="api-token">([^<]*)<\/code>/)?.[1];
-  if (!token) throw new Error("no api token on /settings");
+/** A fresh API token named `name`, created on `/settings` for the session `cookie`. */
+export async function apiToken(cookie: string, name = "tests"): Promise<string> {
+  const html = await (await formPost("/settings/tokens", { name }, { cookie })).text();
+  const token = html.match(/<code id="new-token">([^<]*)<\/code>/)?.[1];
+  if (!token) throw new Error("no new token on /settings");
   return token;
 }
 
