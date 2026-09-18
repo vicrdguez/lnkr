@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
 import { readSignals, requireDatastar, sse, text } from "../datastar";
 import {
@@ -12,7 +12,7 @@ import {
 } from "../db/bookmarks";
 import { pageParams, parsePageSignals } from "../lib/signals";
 import { ListFragments } from "../views/bookmark_list";
-import { listFilter, listing } from "./bookmarks";
+import { faviconProviderFor, listFilter, listing } from "./bookmarks";
 
 type Apply = (sql: SqlStorage, ids: number[], now: string, names: string[]) => void;
 
@@ -45,9 +45,9 @@ const selectedIds = (selected: unknown): number[] =>
  * Re-renders the page the signals describe and streams the list and sidebar, plus the bulk bar after a bulk action;
  * patches `page` when the change left it past the end, and after a bulk action resets the selection.
  */
-function respond(sql: SqlStorage, raw: Record<string, unknown>, bulk: boolean): Response {
+function respond(c: Context<AppEnv>, raw: Record<string, unknown>, bulk: boolean): Response {
   const signals = parsePageSignals(raw);
-  const view = listing(sql, raw.archived === true, signals, pageParams(signals));
+  const view = listing(c.get("sql"), raw.archived === true, signals, pageParams(signals), faviconProviderFor(c));
   return sse((stream) => {
     stream.patchElements(String(<ListFragments {...view} bulkBar={bulk} />));
     const patch: Record<string, unknown> = view.page === signals.page ? {} : { page: view.page };
@@ -69,7 +69,7 @@ bookmarkActions.post(`/bookmarks/:id{[0-9]+}/:action{${ITEM_ACTIONS.join("|")}}`
   const id = Number(c.req.param("id"));
   if (!getBookmark(sql, id)) return c.notFound();
   ACTIONS[c.req.param("action") as ItemAction](sql, [id], new Date().toISOString(), []);
-  return respond(sql, signals, false);
+  return respond(c, signals, false);
 });
 
 /**
@@ -89,5 +89,5 @@ bookmarkActions.post("/bookmarks/bulk", requireDatastar, async (c) => {
       : { archived, ids: selectedIds(signals.selected) },
   );
   if (ids.length) ACTIONS[signals.action](sql, ids, new Date().toISOString(), text(signals.bulkTags).split(/\s+/));
-  return respond(sql, signals, true);
+  return respond(c, signals, true);
 });

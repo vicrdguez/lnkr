@@ -2,6 +2,7 @@ import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
 import { countBookmarks, type ListFilter, selectBookmarks, tagCounts, tagNamesFor } from "../db/bookmarks";
 import { type PageSignals, parsePageSignals } from "../lib/signals";
+import { readPrefs } from "../prefs";
 import { compileSearch, MATCH_NONE } from "../search";
 import { BookmarkPage, type Listing } from "../views/bookmark_list";
 
@@ -14,8 +15,18 @@ export const listFilter = (archived: boolean, { q, unread }: PageSignals): ListF
   search: compileSearch(q) ?? MATCH_NONE,
 });
 
+/** The favicon provider's URL template for the request's user, or null while the Favicons preference is off. */
+export const faviconProviderFor = (c: Context<AppEnv>): string | null =>
+  readPrefs(c.get("user")).enable_favicons ? c.env.LD_FAVICON_PROVIDER : null;
+
 /** Everything the list page renders for `signals`, its links keeping `params`; a page past the end is the last page. */
-export function listing(sql: SqlStorage, archived: boolean, signals: PageSignals, params: URLSearchParams): Listing {
+export function listing(
+  sql: SqlStorage,
+  archived: boolean,
+  signals: PageSignals,
+  params: URLSearchParams,
+  faviconProvider: string | null,
+): Listing {
   const filter = listFilter(archived, signals);
   const count = countBookmarks(sql, filter);
   const pages = Math.max(Math.ceil(count / ITEMS_PER_PAGE), 1);
@@ -33,13 +44,15 @@ export function listing(sql: SqlStorage, archived: boolean, signals: PageSignals
     tags: tagCounts(sql, filter),
     empty: count ? null : countBookmarks(sql, { archived }) ? "No bookmarks found" : "No bookmarks yet",
     now: Date.now(),
+    faviconProvider,
   };
 }
 
 const listPage = (archived: boolean) => (c: Context<AppEnv>) => {
   const params = new URL(c.req.url).searchParams;
   const signals = parsePageSignals(Object.fromEntries(params));
-  return c.html(<BookmarkPage user={c.get("user")} {...listing(c.get("sql"), archived, signals, params)} />);
+  const view = listing(c.get("sql"), archived, signals, params, faviconProviderFor(c));
+  return c.html(<BookmarkPage user={c.get("user")} {...view} />);
 };
 
 export const bookmarkPages = new Hono<AppEnv>();

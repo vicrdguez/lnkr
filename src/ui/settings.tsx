@@ -4,6 +4,7 @@ import { hashPassword, verifyPassword } from "../auth/password";
 import { type ApiToken, createApiToken, deleteApiToken, getOrCreateFeedToken, listApiTokens } from "../db/tokens";
 import { updatePassword, type User } from "../db/users";
 import { absoluteDate } from "../lib/dates";
+import { readPrefs, writePrefs } from "../prefs";
 import { ErrorMessage, Field, Layout } from "../views/layout";
 import { formFields } from "./form";
 
@@ -55,6 +56,17 @@ const SettingsPage = ({ user, tokens, feedToken, origin, newToken, error }: Sett
       <a id="feed-all" href={`${origin}/feeds/${feedToken}/all`}>All bookmarks</a> ·{" "}
       <a id="feed-unread" href={`${origin}/feeds/${feedToken}/unread`}>Unread bookmarks</a>
     </p>
+    <h2>Favicons</h2>
+    <form method="post" action="/settings/favicons">
+      <label class="checkbox">
+        <input type="checkbox" name="enable_favicons" checked={readPrefs(user).enable_favicons} /> Show favicons next to
+        bookmarks
+      </label>
+      <p class="hint">
+        Your browser loads each icon from the favicon provider, which therefore learns the hosts you have bookmarked.
+      </p>
+      <button>Save</button>
+    </form>
     <h2>Change password</h2>
     <form method="post" action="/settings/password">
       <Field label="Current password" name="current" type="password" autocomplete="current-password" />
@@ -86,6 +98,12 @@ settings.post("/settings/tokens", async (c) => {
 
 settings.post("/settings/tokens/:id{[0-9]+}/revoke", (c) => {
   deleteApiToken(c.get("sql"), Number(c.req.param("id")));
+  return c.redirect("/settings");
+});
+
+settings.post("/settings/favicons", async (c) => {
+  const { enable_favicons } = await formFields(c, "enable_favicons");
+  writePrefs(c.get("sql"), c.get("user"), { enable_favicons: !!enable_favicons });
   return c.redirect("/settings");
 });
 
