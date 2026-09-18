@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import fixture from "./fixtures/linkding-export.html?raw";
 import { api, apiToken, filePost, formPost, get, setupTenant } from "./helpers";
@@ -26,6 +25,7 @@ async function all(): Promise<Json[]> {
   return [...(await list("/api/bookmarks/")), ...(await list("/api/bookmarks/archived/"))];
 }
 
+/** The Bookmark at `url`, which must exist. */
 async function byUrl(url: string): Promise<Json> {
   const found = (await all()).find((bookmark) => bookmark.url === url);
   expect(found, url).toBeDefined();
@@ -134,6 +134,7 @@ async function imported(html: string, mapPrivateFlag = false): Promise<string> {
 /** A minimal Netscape file around `entries`. */
 const file = (...entries: string[]) => `<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<DL><p>\n${entries.join("\n")}\n</DL><p>\n`;
 
+/** Every Tag name, ordered by name. */
 const tagNames = async () => ((await (await api(token).get("/api/tags/")).json<Json>()).results as Json[]).map((t) => t.name);
 
 describe("Import", () => {
@@ -198,6 +199,26 @@ describe("Import", () => {
     expect((await byUrl("https://example.com/one")).shared).toBe(false);
   });
 
+  it("keeps an existing shared flag when the option is off", async () => {
+    await imported(fixture, true);
+
+    await imported(fixture);
+
+    expect((await byUrl("https://example.com/two")).shared).toBe(true);
+  });
+
+  it("decodes entities in attributes, titles and notes and encodes them again", async () => {
+    const entry =
+      '<DT><A HREF="https://x.test/?a=1&amp;b=2" TAGS="a&amp;b,c">T &quot;q&quot;</A>\n<DD>D[linkding-notes]N &lt;n&gt;[/linkding-notes]';
+
+    await imported(file(entry));
+
+    expect(await byUrl("https://x.test/?a=1&b=2")).toMatchObject({ title: 'T "q"', tag_names: ["a&b", "c"], notes: "N <n>" });
+    const lines = await exportLines();
+    expect(entryFor(lines, "https://x.test/?a=1&amp;b=2")).toContain('TAGS="a&amp;b,c">T &quot;q&quot;</A>');
+    expect(lines).toContain("<DD>D[linkding-notes]N &lt;n&gt;[/linkding-notes]");
+  });
+
   it("skips invalid URLs", async () => {
     const html = file('<DT><A HREF="https://ok.test/">Ok</A>', '<DT><A HREF="not a url">Bad</A>', '<DT><A HREF="ftp://x.test/">Ftp</A>');
 
@@ -225,6 +246,7 @@ describe("Import", () => {
       '<DT><A HREF="https://a.test/">A</A>',
       "<DD>Desc of A",
       "<DT><H3>Folder</H3>",
+      "<DD>Folder description",
       "<DL><p>",
       '<DT><A HREF="https://b.test/">B</A>',
       "</DL><p>",

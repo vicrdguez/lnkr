@@ -1,12 +1,12 @@
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
 import { hashPassword, verifyPassword } from "../auth/password";
-import { allBookmarks, tagNamesFor, toFields } from "../db/bookmarks";
+import { allBookmarks, tagNamesFor } from "../db/bookmarks";
 import { importEntries } from "../db/import";
 import { createToken, currentToken, deleteTokens } from "../db/tokens";
 import { updatePassword, type User } from "../db/users";
 import { readPrefs, writePrefs } from "../prefs";
-import { parseNetscape, renderNetscape } from "../services/netscape";
+import { entryOf, parseNetscape, renderNetscape } from "../services/netscape";
 import { ErrorMessage, Field, Layout } from "../views/layout";
 import { formFields } from "./form";
 
@@ -83,13 +83,7 @@ settings.get("/settings/export", (c) => {
   const sql = c.get("sql");
   const rows = allBookmarks(sql);
   const tags = tagNamesFor(sql, rows.map((row) => row.id));
-  const entries = rows.map((row) => ({
-    ...toFields(row),
-    tags: tags.get(row.id) ?? [],
-    dateAdded: row.date_added,
-    dateModified: row.date_modified,
-  }));
-  return c.body(renderNetscape(entries), 200, {
+  return c.body(renderNetscape(rows.map((row) => entryOf(row, tags.get(row.id) ?? []))), 200, {
     "Content-Type": "text/html; charset=utf-8",
     "Content-Disposition": 'attachment; filename="bookmarks.html"',
   });
