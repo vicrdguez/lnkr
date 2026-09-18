@@ -46,6 +46,7 @@ export function renderRss(kind: FeedKind, origin: string, rows: BookmarkRow[]): 
 /** The Tenant's feeds, reachable with the feed token alone: no session and no CSRF. */
 export const feeds = new Hono<AppEnv>();
 
+// DEBT(#30/W1): Hono's TrieRouter compiles a trailing {all|unread} to ^all|unread$, unanchored, so /feeds/<token>/allx, /xunread and /all/extra serve a feed instead of 404; anchor the alternation.
 feeds.get("/feeds/:token/:kind{all|unread}", (c) => {
   const kind = c.req.param("kind") as FeedKind;
   const sql = c.get("sql");
