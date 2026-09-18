@@ -8,5 +8,8 @@
     "bindings": [{ "name": "TENANT", "class_name": "Tenant" }]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Tenant"] }],
-  "vars": { "LD_SESSION_COOKIE_AGE": "1209600" }
+  "vars": {
+    "LD_SESSION_COOKIE_AGE": "1209600",
+    "LD_FAVICON_PROVIDER": "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url={url}&size=32"
+  }
 }

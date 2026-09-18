@@ -3,6 +3,7 @@ import type { AppEnv } from "../app";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { createToken, currentToken, deleteTokens } from "../db/tokens";
 import { updatePassword, type User } from "../db/users";
+import { readPrefs, writePrefs } from "../prefs";
 import { ErrorMessage, Field, Layout } from "../views/layout";
 import { formFields } from "./form";
 
@@ -23,6 +24,17 @@ const SettingsPage = ({ user, token, origin, error }: { user: User; token: strin
     </p>
     <form method="post" action="/settings/token/regenerate">
       <button>Regenerate</button>
+    </form>
+    <h2>Favicons</h2>
+    <form method="post" action="/settings/favicons">
+      <label class="checkbox">
+        <input type="checkbox" name="enable_favicons" checked={readPrefs(user).enable_favicons} /> Show favicons next to
+        bookmarks
+      </label>
+      <p class="hint">
+        Your browser loads each icon from the favicon provider, which therefore learns the hosts you have bookmarked.
+      </p>
+      <button>Save</button>
     </form>
     <h2>Change password</h2>
     <form method="post" action="/settings/password">
@@ -49,6 +61,12 @@ settings.post("/settings/token/regenerate", (c) => {
   const sql = c.get("sql");
   deleteTokens(sql);
   createToken(sql, new Date().toISOString());
+  return c.redirect("/settings");
+});
+
+settings.post("/settings/favicons", async (c) => {
+  const { enable_favicons } = await formFields(c, "enable_favicons");
+  writePrefs(c.get("sql"), c.get("user"), { enable_favicons: !!enable_favicons });
   return c.redirect("/settings");
 });
 

@@ -4,6 +4,7 @@ import type { User } from "../db/users";
 import { absoluteDate, archiveTimestamp, relativeDate } from "../lib/dates";
 import { pageUrl, tagsIn, withoutTag, withTag } from "../lib/query";
 import type { PageSignals } from "../lib/signals";
+import { faviconUrl } from "../services/favicons";
 import type { Action, ItemAction } from "../ui/bookmark_actions";
 import { current, Layout } from "./layout";
 
@@ -20,6 +21,8 @@ export type Listing = PageSignals & {
   /** The message shown instead of items when there are none. */
   empty: string | null;
   now: number;
+  /** The favicon provider's URL template, or null when the Favicons preference is off. */
+  faviconProvider: string | null;
 };
 
 const SORT_LABELS: Record<ListSort, string> = {
@@ -144,10 +147,10 @@ const BulkBar: FC<Listing> = ({ archived, items }) => {
   );
 };
 
-const BookmarkList: FC<Listing & { link: LinkTo }> = ({ items, archived, link, now }) => (
+const BookmarkList: FC<Listing & { link: LinkTo }> = ({ items, archived, link, now, faviconProvider }) => (
   <ul id="bookmark-list">
     {items.map(({ row, tags }) => (
-      <BookmarkItem row={row} tags={tags} archived={archived} link={link} now={now} />
+      <BookmarkItem row={row} tags={tags} archived={archived} link={link} now={now} faviconProvider={faviconProvider} />
     ))}
   </ul>
 );
@@ -182,17 +185,19 @@ const Sidebar: FC<{ tags: Listing["tags"]; q: string; link: LinkTo }> = ({ tags,
   );
 };
 
-const BookmarkItem: FC<{ row: BookmarkRow; tags: string[]; archived: boolean; link: LinkTo; now: number }> = ({
-  row,
-  tags,
-  archived,
-  link,
-  now,
-}) => {
+const BookmarkItem: FC<{
+  row: BookmarkRow;
+  tags: string[];
+  archived: boolean;
+  link: LinkTo;
+  now: number;
+  faviconProvider: string | null;
+}> = ({ row, tags, archived, link, now, faviconProvider }) => {
   const name = row.title || row.url;
   return (
     <li id={`bookmark-${row.id}`} class={row.unread ? "unread" : undefined}>
       <input type="checkbox" aria-label={`Select ${name}`} {...{ [`data-bind:selected.b${row.id}`]: "" }} />{" "}
+      <Favicon src={faviconProvider && faviconUrl(faviconProvider, row.url)} />
       <a class="title" href={row.url} target="_blank" rel="noopener">
         {name}
       </a>
@@ -240,3 +245,7 @@ const BookmarkItem: FC<{ row: BookmarkRow; tags: string[]; archived: boolean; li
     </li>
   );
 };
+
+/** The site's icon from the provider, loaded by the browser; nothing when icons are off or the URL has no origin. */
+const Favicon: FC<{ src: string | null }> = ({ src }) =>
+  src ? <img class="favicon" src={src} alt="" width="16" height="16" loading="lazy" /> : null;

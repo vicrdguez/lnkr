@@ -51,6 +51,10 @@ export function updatePassword(sql: SqlStorage, id: number, passwordHash: string
   sql.exec("UPDATE users SET password_hash = ? WHERE id = ?", passwordHash, id);
 }
 
+export function updatePrefs(sql: SqlStorage, id: number, prefs: string): void {
+  sql.exec("UPDATE users SET prefs = ? WHERE id = ?", prefs, id);
+}
+
 /** The Tenant's only user, or null before setup. */
 export function firstUser(sql: SqlStorage): User | null {
   const row = sql.exec<UserRow>("SELECT * FROM users ORDER BY id LIMIT 1").toArray()[0];
