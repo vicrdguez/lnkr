@@ -97,3 +97,17 @@ describe("Icons in the bookmark list", () => {
     expect(await icons("/bookmarks/archived")).toHaveLength(1);
   });
 });
+
+describe("Profile reports the toggle", () => {
+  it.each([
+    ["off", false],
+    ["on", true],
+  ])("enable_favicons is %s", async (state, value) => {
+    if (state === "on") await save(true);
+
+    const response = await api(token).get("/api/user/profile/");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ enable_favicons: value });
+  });
+});
