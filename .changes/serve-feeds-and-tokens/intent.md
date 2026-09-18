@@ -23,15 +23,15 @@ Named API tokens with create and revoke on the settings page, the key shown once
 - Atom, per-item categories, enclosures
 
 ## Definition of Done
-- [ ] The settings page lists API tokens by name and date and never shows a stored key.
-- [ ] Creating a token shows its 40-character key once, and that key authenticates the API.
-- [ ] Revoking a token removes it from the list and the key stops authenticating.
-- [ ] The settings page shows a feed token and the two feed URLs; the token is stable across views.
-- [ ] `/feeds/<token>/all` returns valid RSS 2.0 with one item per active Bookmark, newest first, with title, link, description and publication date; archived Bookmarks are absent.
-- [ ] `/feeds/<token>/unread` contains only active unread Bookmarks.
-- [ ] `q` filters both feeds with the search grammar and `limit` caps the items, defaulting to 100.
-- [ ] A wrong token answers 404 and the feeds work without cookies.
-- [ ] Titles and descriptions containing `&`, `<` or `>` are escaped in the XML.
+- [x] The settings page lists API tokens by name and date and never shows a stored key.
+- [x] Creating a token shows its 40-character key once, and that key authenticates the API.
+- [x] Revoking a token removes it from the list and the key stops authenticating.
+- [x] The settings page shows a feed token and the two feed URLs; the token is stable across views.
+- [x] `/feeds/<token>/all` returns valid RSS 2.0 with one item per active Bookmark, newest first, with title, link, description and publication date; archived Bookmarks are absent.
+- [x] `/feeds/<token>/unread` contains only active unread Bookmarks.
+- [x] `q` filters both feeds with the search grammar and `limit` caps the items, defaulting to 100.
+- [x] A wrong token answers 404 and the feeds work without cookies.
+- [x] Titles and descriptions containing `&`, `<` or `>` are escaped in the XML.
 
 ## Manual verification
 - [ ] Subscribe to the `unread` feed URL in a feed reader and see new unread Bookmarks appear.
