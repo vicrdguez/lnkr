@@ -19,11 +19,11 @@ A Favicons toggle on the settings page, off by default. When on, every Bookmark 
 - Icons anywhere except the bookmark list
 
 ## Definition of Done
-- [ ] The settings page shows the toggle in its current state and saving changes it.
-- [ ] With the toggle off, no list item contains a favicon image.
-- [ ] With the toggle on, every list item contains an image whose `src` is the provider template with the Bookmark's encoded origin, and only the origin.
-- [ ] The provider template comes from `LD_FAVICON_PROVIDER`.
-- [ ] `user/profile` reports the toggle's value.
+- [x] The settings page shows the toggle in its current state and saving changes it.
+- [x] With the toggle off, no list item contains a favicon image.
+- [x] With the toggle on, every list item contains an image whose `src` is the provider template with the Bookmark's encoded origin, and only the origin.
+- [x] The provider template comes from `LD_FAVICON_PROVIDER`.
+- [x] `user/profile` reports the toggle's value.
 
 ## Manual verification
 - [ ] Turn the toggle on under `wrangler dev` and see real icons next to a few Bookmarks.
