@@ -26,14 +26,14 @@ The assets table and an R2 bucket, a Snapshot button on every list item that ren
 - Wayback Machine saving
 
 ## Definition of Done
-- [ ] A logged-in user clicks Snapshot on a list item; the page is rendered through Browser Rendering, stored, and the item re-renders with its date linking to the new Snapshot.
-- [ ] A render that fails or cannot be reached leaves an Asset in `failure` status, shown as failed on the item and on the edit page.
-- [ ] A second Snapshot started within ten seconds of the previous one is refused with a message and makes no outbound request; after ten seconds it is taken and becomes the latest.
-- [ ] The stored HTML is served at `/assets/<id>` only with a session, with a sandboxing Content-Security-Policy and nosniff; unknown ids answer 404.
-- [ ] The edit page lists a Bookmark's Snapshots with view links and Delete; deleting removes the row and the stored file and moves the date link to the newest remaining Snapshot or back to the Web Archive link.
-- [ ] Deleting a Bookmark removes its Snapshots and their files.
-- [ ] The assets API lists, gets, downloads as an attachment and deletes with linkding's field names; upload answers 405; missing token answers 401; unknown ids answer 404.
-- [ ] Creating a Bookmark with `disable_html_snapshot` succeeds and creates no Asset.
+- [x] A logged-in user clicks Snapshot on a list item; the page is rendered through Browser Rendering, stored, and the item re-renders with its date linking to the new Snapshot.
+- [x] A render that fails or cannot be reached leaves an Asset in `failure` status, shown as failed on the item and on the edit page.
+- [x] A second Snapshot started within ten seconds of the previous one is refused with a message and makes no outbound request; after ten seconds it is taken and becomes the latest.
+- [x] The stored HTML is served at `/assets/<id>` only with a session, with a sandboxing Content-Security-Policy and nosniff; unknown ids answer 404.
+- [x] The edit page lists a Bookmark's Snapshots with view links and Delete; deleting removes the row and the stored file and moves the date link to the newest remaining Snapshot or back to the Web Archive link.
+- [x] Deleting a Bookmark removes its Snapshots and their files.
+- [x] The assets API lists, gets, downloads as an attachment and deletes with linkding's field names; upload answers 405; missing token answers 401; unknown ids answer 404.
+- [x] Creating a Bookmark with `disable_html_snapshot` succeeds and creates no Asset.
 
 ## Manual verification
 - [ ] With real `CF_ACCOUNT_ID` and `CF_BROWSER_TOKEN` in `.dev.vars`, snapshot a JavaScript-rendered page and open it from the list; check the `X-Browser-Ms-Used` header value in the wrangler log against the 10 minutes per day Free allowance.
