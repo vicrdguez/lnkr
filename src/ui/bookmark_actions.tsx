@@ -1,6 +1,7 @@
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
 import { isDatastar, readSignals, requireDatastar, sse, text } from "../datastar";
+import { assetCountsFor } from "../db/assets";
 import {
   bulkAddTags,
   bulkDelete,
@@ -117,8 +118,11 @@ bookmarkActions.post("/bookmarks/:id{[0-9]+}/snapshot", async (c) => {
     const message = (await takeSnapshot(sql, c.env, row, now)) ?? undefined;
     const fresh = getBookmark(sql, id);
     if (!fresh) return;
+    const snapshots = assetCountsFor(sql, [id]).get(id) ?? 0;
     stream.patchElements(
-      String(<BookmarkItem row={fresh} tags={tagNamesOf(sql, id)} link={linkTo(view)} message={message} {...view} />),
+      String(
+        <BookmarkItem row={fresh} tags={tagNamesOf(sql, id)} snapshots={snapshots} link={linkTo(view)} message={message} {...view} />,
+      ),
     );
   });
 });

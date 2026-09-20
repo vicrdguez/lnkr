@@ -35,6 +35,19 @@ export function findAsset(sql: SqlStorage, id: number): AssetRow | null {
   return sql.exec<AssetRow>("SELECT * FROM assets WHERE id = ?", id).toArray()[0] ?? null;
 }
 
+/** How many Assets each of `ids` has, in one query; ids without any are absent. */
+export function assetCountsFor(sql: SqlStorage, ids: number[]): Map<number, number> {
+  return new Map(
+    sql
+      .exec<{ bookmark_id: number; n: number }>(
+        "SELECT bookmark_id, count(*) AS n FROM assets WHERE bookmark_id IN (SELECT value FROM json_each(?)) GROUP BY bookmark_id",
+        JSON.stringify(ids),
+      )
+      .toArray()
+      .map((row) => [row.bookmark_id, row.n]),
+  );
+}
+
 /** When the Tenant's newest Asset, of any Bookmark, was created; null before the first. */
 export function newestAssetTime(sql: SqlStorage): string | null {
   return sql.exec<{ t: string | null }>("SELECT max(date_created) AS t FROM assets").one().t;

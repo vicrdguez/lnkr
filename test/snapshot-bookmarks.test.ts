@@ -87,4 +87,15 @@ describe("Take a snapshot from the list", () => {
     expect(stored.status).toBe(200);
     expect(await stored.text()).toContain("kept");
   });
+
+  it("links the date to the latest completed snapshot", async () => {
+    mockRender(KEPT);
+    await snapshot();
+
+    const html = await page("/bookmarks");
+
+    expect(await dateLink(html)).toBe("/assets/1");
+    const count = (await select(html, `#bookmark-${id} a`)).find((a) => a.text === "1 snapshot");
+    expect(count?.attrs.href).toBe(`/bookmarks/${id}/edit#snapshots`);
+  });
 });

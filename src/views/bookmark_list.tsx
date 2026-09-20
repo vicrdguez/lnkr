@@ -15,7 +15,7 @@ export type Listing = PageSignals & {
   archived: boolean;
   /** The page's query; every link keeps it. */
   params: URLSearchParams;
-  items: { row: BookmarkRow; tags: string[] }[];
+  items: { row: BookmarkRow; tags: string[]; snapshots: number }[];
   pages: number;
   tags: { name: string; count: number }[];
   /** The message shown instead of items when there are none. */
@@ -152,10 +152,11 @@ const BulkBar: FC<Listing> = ({ archived, items }) => {
 
 const BookmarkList: FC<Listing & { link: LinkTo }> = ({ items, archived, link, now, faviconProvider, snapshotButton }) => (
   <ul id="bookmark-list">
-    {items.map(({ row, tags }) => (
+    {items.map(({ row, tags, snapshots }) => (
       <BookmarkItem
         row={row}
         tags={tags}
+        snapshots={snapshots}
         archived={archived}
         link={link}
         now={now}
@@ -200,13 +201,15 @@ const Sidebar: FC<{ tags: Listing["tags"]; q: string; link: LinkTo }> = ({ tags,
 export const BookmarkItem: FC<{
   row: BookmarkRow;
   tags: string[];
+  /** How many Assets the Bookmark has, complete or not. */
+  snapshots: number;
   archived: boolean;
   link: LinkTo;
   now: number;
   faviconProvider: string | null;
   snapshotButton: boolean;
   message?: string;
-}> = ({ row, tags, archived, link, now, faviconProvider, snapshotButton, message }) => {
+}> = ({ row, tags, snapshots, archived, link, now, faviconProvider, snapshotButton, message }) => {
   const name = row.title || row.url;
   return (
     <li id={`bookmark-${row.id}`} class={row.unread ? "unread" : undefined}>
@@ -250,6 +253,11 @@ export const BookmarkItem: FC<{
         >
           {relativeDate(row.date_added, now)}
         </a>{" "}
+        {snapshots > 0 && (
+          <a class="snapshots" href={`/bookmarks/${row.id}/edit#snapshots`}>
+            {`${snapshots} snapshot${snapshots === 1 ? "" : "s"}`}
+          </a>
+        )}{" "}
         <a class="edit" href={`/bookmarks/${row.id}/edit`} aria-label={`Edit ${name}`}>
           Edit
         </a>

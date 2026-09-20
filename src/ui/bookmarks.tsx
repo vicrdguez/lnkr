@@ -1,5 +1,6 @@
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
+import { assetCountsFor } from "../db/assets";
 import { countBookmarks, type ListFilter, selectBookmarks, tagCounts, tagNamesFor } from "../db/bookmarks";
 import { type PageSignals, parsePageSignals } from "../lib/signals";
 import { readPrefs } from "../prefs";
@@ -37,14 +38,16 @@ export function listing(
   const page = Math.min(signals.page, pages);
   const { sort } = signals;
   const rows = selectBookmarks(sql, { ...filter, sort, limit: ITEMS_PER_PAGE, offset: (page - 1) * ITEMS_PER_PAGE });
-  const names = tagNamesFor(sql, rows.map((row) => row.id));
+  const ids = rows.map((row) => row.id);
+  const names = tagNamesFor(sql, ids);
+  const snapshots = assetCountsFor(sql, ids);
   return {
     ...signals,
     archived,
     params,
     page,
     pages,
-    items: rows.map((row) => ({ row, tags: names.get(row.id) ?? [] })),
+    items: rows.map((row) => ({ row, tags: names.get(row.id) ?? [], snapshots: snapshots.get(row.id) ?? 0 })),
     tags: tagCounts(sql, filter),
     empty: count ? null : countBookmarks(sql, { archived }) ? "No bookmarks found" : "No bookmarks yet",
     now: Date.now(),
