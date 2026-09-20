@@ -15,7 +15,7 @@ export type Listing = PageSignals & {
   archived: boolean;
   /** The page's query; every link keeps it. */
   params: URLSearchParams;
-  items: { row: BookmarkRow; tags: string[] }[];
+  items: { row: BookmarkRow; tags: string[]; snapshots: number }[];
   pages: number;
   tags: { name: string; count: number }[];
   /** The message shown instead of items when there are none. */
@@ -23,6 +23,8 @@ export type Listing = PageSignals & {
   now: number;
   /** The favicon provider's URL template, or null when the Favicons preference is off. */
   faviconProvider: string | null;
+  /** Whether items offer the Snapshot button: Browser Rendering is configured. */
+  snapshotButton: boolean;
 };
 
 const SORT_LABELS: Record<ListSort, string> = {
@@ -34,7 +36,8 @@ const SORT_LABELS: Record<ListSort, string> = {
 
 const pathOf = (archived: boolean) => (archived ? "/bookmarks/archived" : "/bookmarks");
 
-const linkTo = ({ archived, params }: Listing): LinkTo => (changes) => pageUrl(pathOf(archived), params, changes);
+export const linkTo = ({ archived, params }: Pick<Listing, "archived" | "params">): LinkTo => (changes) =>
+  pageUrl(pathOf(archived), params, changes);
 
 /** The signals the page declares: its query as the actions post it back, the page kind, and an empty selection. */
 // DEBT(#28/W3): Datastar rewrites @name( even inside this JSON's string literals, so a search holding text like @Component( leaves the page's signals undeclared and its actions post without them.
@@ -147,10 +150,19 @@ const BulkBar: FC<Listing> = ({ archived, items }) => {
   );
 };
 
-const BookmarkList: FC<Listing & { link: LinkTo }> = ({ items, archived, link, now, faviconProvider }) => (
+const BookmarkList: FC<Listing & { link: LinkTo }> = ({ items, archived, link, now, faviconProvider, snapshotButton }) => (
   <ul id="bookmark-list">
-    {items.map(({ row, tags }) => (
-      <BookmarkItem row={row} tags={tags} archived={archived} link={link} now={now} faviconProvider={faviconProvider} />
+    {items.map(({ row, tags, snapshots }) => (
+      <BookmarkItem
+        row={row}
+        tags={tags}
+        snapshots={snapshots}
+        archived={archived}
+        link={link}
+        now={now}
+        faviconProvider={faviconProvider}
+        snapshotButton={snapshotButton}
+      />
     ))}
   </ul>
 );
@@ -185,14 +197,19 @@ const Sidebar: FC<{ tags: Listing["tags"]; q: string; link: LinkTo }> = ({ tags,
   );
 };
 
-const BookmarkItem: FC<{
+/** One list item; the Snapshot action re-renders it alone, with `message` saying why no Snapshot was stored. */
+export const BookmarkItem: FC<{
   row: BookmarkRow;
   tags: string[];
+  /** How many Assets the Bookmark has, complete or not. */
+  snapshots: number;
   archived: boolean;
   link: LinkTo;
   now: number;
   faviconProvider: string | null;
-}> = ({ row, tags, archived, link, now, faviconProvider }) => {
+  snapshotButton: boolean;
+  message?: string;
+}> = ({ row, tags, snapshots, archived, link, now, faviconProvider, snapshotButton, message }) => {
   const name = row.title || row.url;
   return (
     <li id={`bookmark-${row.id}`} class={row.unread ? "unread" : undefined}>
@@ -217,16 +234,30 @@ const BookmarkItem: FC<{
           <pre>{row.notes}</pre>
         </details>
       )}
+      {message && (
+        <p class="hint" role="status">
+          {message}
+        </p>
+      )}
       <p class="actions">
         <a
           class="date"
-          href={`https://web.archive.org/web/${archiveTimestamp(row.date_added)}/${row.url}`}
+          href={
+            row.latest_snapshot_id
+              ? `/assets/${row.latest_snapshot_id}`
+              : `https://web.archive.org/web/${archiveTimestamp(row.date_added)}/${row.url}`
+          }
           title={absoluteDate(row.date_added)}
           target="_blank"
           rel="noopener"
         >
           {relativeDate(row.date_added, now)}
         </a>{" "}
+        {snapshots > 0 && (
+          <a class="snapshots" href={`/bookmarks/${row.id}/edit#snapshots`}>
+            {`${snapshots} snapshot${snapshots === 1 ? "" : "s"}`}
+          </a>
+        )}{" "}
         <a class="edit" href={`/bookmarks/${row.id}/edit`} aria-label={`Edit ${name}`}>
           Edit
         </a>
@@ -241,6 +272,11 @@ const BookmarkItem: FC<{
             Mark read
           </button>
         ) : null}
+        {snapshotButton && (
+          <button type="button" data-on:click={post(`/bookmarks/${row.id}/snapshot`)}>
+            Snapshot
+          </button>
+        )}
       </p>
     </li>
   );

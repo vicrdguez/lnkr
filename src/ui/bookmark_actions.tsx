@@ -1,6 +1,7 @@
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
-import { readSignals, requireDatastar, sse, text } from "../datastar";
+import { isDatastar, readSignals, requireDatastar, sse, text } from "../datastar";
+import { assetCountsFor } from "../db/assets";
 import {
   bulkAddTags,
   bulkDelete,
@@ -9,25 +10,36 @@ import {
   bulkSetUnread,
   getBookmark,
   idsMatching,
+  tagNamesOf,
 } from "../db/bookmarks";
 import { pageParams, parsePageSignals } from "../lib/signals";
-import { ListFragments } from "../views/bookmark_list";
-import { faviconProviderFor, listFilter, listing } from "./bookmarks";
+import { takeSnapshot } from "../services/snapshots";
+import { BookmarkItem, ListFragments, linkTo } from "../views/bookmark_list";
+import { displayFor, listFilter, listing } from "./bookmarks";
 
-type Apply = (sql: SqlStorage, ids: number[], now: string, names: string[]) => void;
+/** What an action may need: storage, the moment, and the tag names typed into the bulk bar. */
+type Deps = { sql: SqlStorage; bucket: R2Bucket; now: string; names: string[] };
+type Apply = (deps: Deps, ids: number[]) => void | Promise<void>;
 
 export type Action = "archive" | "unarchive" | "delete" | "read" | "unread" | "tag" | "untag";
 
 /** Every action by the name the bulk bar sends. */
 const ACTIONS: Record<Action, Apply> = {
-  archive: (sql, ids, now) => bulkSetArchived(sql, ids, true, now),
-  unarchive: (sql, ids, now) => bulkSetArchived(sql, ids, false, now),
-  delete: (sql, ids) => bulkDelete(sql, ids),
-  read: (sql, ids, now) => bulkSetUnread(sql, ids, false, now),
-  unread: (sql, ids, now) => bulkSetUnread(sql, ids, true, now),
-  tag: (sql, ids, now, names) => bulkAddTags(sql, ids, names, now),
-  untag: (sql, ids, now, names) => bulkRemoveTags(sql, ids, names, now),
+  archive: ({ sql, now }, ids) => bulkSetArchived(sql, ids, true, now),
+  unarchive: ({ sql, now }, ids) => bulkSetArchived(sql, ids, false, now),
+  delete: ({ sql, bucket }, ids) => bulkDelete(sql, bucket, ids),
+  read: ({ sql, now }, ids) => bulkSetUnread(sql, ids, false, now),
+  unread: ({ sql, now }, ids) => bulkSetUnread(sql, ids, true, now),
+  tag: ({ sql, now, names }, ids) => bulkAddTags(sql, ids, names, now),
+  untag: ({ sql, now, names }, ids) => bulkRemoveTags(sql, ids, names, now),
 };
+
+const depsFor = (c: Context<AppEnv>, names: string[] = []): Deps => ({
+  sql: c.get("sql"),
+  bucket: c.env.ASSETS_BUCKET,
+  now: new Date().toISOString(),
+  names,
+});
 /** The actions an item's own buttons offer. */
 export const ITEM_ACTIONS = ["archive", "unarchive", "delete", "read"] as const satisfies readonly Action[];
 export type ItemAction = (typeof ITEM_ACTIONS)[number];
@@ -47,7 +59,7 @@ const selectedIds = (selected: unknown): number[] =>
  */
 function respond(c: Context<AppEnv>, raw: Record<string, unknown>, bulk: boolean): Response {
   const signals = parsePageSignals(raw);
-  const view = listing(c.get("sql"), raw.archived === true, signals, pageParams(signals), faviconProviderFor(c));
+  const view = listing(c.get("sql"), raw.archived === true, signals, pageParams(signals), displayFor(c));
   return sse((stream) => {
     stream.patchElements(String(<ListFragments {...view} bulkBar={bulk} />));
     const patch: Record<string, unknown> = view.page === signals.page ? {} : { page: view.page };
@@ -68,7 +80,7 @@ bookmarkActions.post(`/bookmarks/:id{[0-9]+}/:action{${ITEM_ACTIONS.join("|")}}`
   const sql = c.get("sql");
   const id = Number(c.req.param("id"));
   if (!getBookmark(sql, id)) return c.notFound();
-  ACTIONS[c.req.param("action") as ItemAction](sql, [id], new Date().toISOString(), []);
+  await ACTIONS[c.req.param("action") as ItemAction](depsFor(c), [id]);
   return respond(c, signals, false);
 });
 
@@ -88,6 +100,40 @@ bookmarkActions.post("/bookmarks/bulk", requireDatastar, async (c) => {
       ? listFilter(archived, parsePageSignals(signals))
       : { archived, ids: selectedIds(signals.selected) },
   );
-  if (ids.length) ACTIONS[signals.action](sql, ids, new Date().toISOString(), text(signals.bulkTags).split(/\s+/));
+  if (ids.length) await ACTIONS[signals.action](depsFor(c, text(signals.bulkTags).split(/\s+/)), ids);
   return respond(c, signals, true);
+});
+
+/**
+ * Takes a Snapshot of the Bookmark. From Datastar it streams the item re-rendered, its message slot saying why no
+ * Snapshot was stored when so; a failed render is still 200 because the client ignores other bodies. A plain form
+ * post lands back on the list once the render is over.
+ */
+bookmarkActions.post("/bookmarks/:id{[0-9]+}/snapshot", async (c) => {
+  const signals = isDatastar(c) ? await readSignals(c) : null;
+  if (isDatastar(c) && !signals) return c.text("JSON body required", 400);
+  const sql = c.get("sql");
+  const id = Number(c.req.param("id"));
+  const row = getBookmark(sql, id);
+  if (!row) return c.notFound();
+  const now = new Date().toISOString();
+  if (!signals) {
+    await takeSnapshot(sql, c.env, row, now);
+    return c.redirect(row.is_archived ? "/bookmarks/archived" : "/bookmarks");
+  }
+  const archived = signals.archived === true;
+  const link = linkTo({ archived, params: pageParams(parsePageSignals(signals)) });
+  const display = displayFor(c);
+  return sse(async (stream) => {
+    const message = (await takeSnapshot(sql, c.env, row, now)) ?? undefined;
+    const fresh = getBookmark(sql, id);
+    if (!fresh) return;
+    const snapshots = assetCountsFor(sql, [id]).get(id) ?? 0;
+    const tags = tagNamesOf(sql, id);
+    stream.patchElements(
+      String(
+        <BookmarkItem row={fresh} tags={tags} snapshots={snapshots} archived={archived} link={link} now={Date.now()} message={message} {...display} />,
+      ),
+    );
+  });
 });

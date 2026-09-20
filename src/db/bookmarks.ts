@@ -1,4 +1,5 @@
 import { MATCH_ALL, type SearchFilter } from "../search";
+import { deleteObjects } from "./assets";
 import { ensureTag, normalizeTagNames } from "./tags";
 
 export type BookmarkRow = {
@@ -12,6 +13,8 @@ export type BookmarkRow = {
   shared: number;
   date_added: string;
   date_modified: string;
+  /** The newest complete Snapshot, kept by `refreshLatestSnapshot`; null without one. */
+  latest_snapshot_id: number | null;
 };
 
 /** Every writable field; booleans here, integers in the row. */
@@ -87,10 +90,11 @@ export function saveBookmark(sql: SqlStorage, input: BookmarkInput, now: string,
   return row;
 }
 
-/** Deletes the bookmark and its tag attachments; false when no such bookmark. */
-export function deleteBookmark(sql: SqlStorage, id: number): boolean {
-  sql.exec("DELETE FROM bookmark_tags WHERE bookmark_id = ?", id);
-  return sql.exec("DELETE FROM bookmarks WHERE id = ?", id).rowsWritten > 0;
+/** Deletes the bookmark with its tag attachments and Assets, stored copies included; false when no such bookmark. */
+export async function deleteBookmark(sql: SqlStorage, bucket: R2Bucket, id: number): Promise<boolean> {
+  if (!getBookmark(sql, id)) return false;
+  await bulkDelete(sql, bucket, [id]);
+  return true;
 }
 
 export function setArchived(sql: SqlStorage, id: number, archived: boolean, now: string): boolean {
@@ -110,11 +114,19 @@ export function bulkSetUnread(sql: SqlStorage, ids: number[], unread: boolean, n
   sql.exec(`UPDATE bookmarks SET unread = ?, date_modified = ? WHERE id ${IN_IDS}`, +unread, now, JSON.stringify(ids));
 }
 
-/** Deletes the bookmarks and their tag attachments. */
-export function bulkDelete(sql: SqlStorage, ids: number[]): void {
+/** Deletes the bookmarks with their tag attachments and Assets; the stored copies go once the rows are gone. */
+export async function bulkDelete(sql: SqlStorage, bucket: R2Bucket, ids: number[]): Promise<void> {
   const list = JSON.stringify(ids);
+  const keys = sql
+    .exec<{ r2_key: string }>(`SELECT r2_key FROM assets WHERE bookmark_id ${IN_IDS}`, list)
+    .toArray()
+    .map((row) => row.r2_key);
+  // Durable Object SQLite enforces foreign keys: pointers, then assets, then attachments, then the bookmarks.
+  sql.exec(`UPDATE bookmarks SET latest_snapshot_id = NULL WHERE id ${IN_IDS}`, list);
+  sql.exec(`DELETE FROM assets WHERE bookmark_id ${IN_IDS}`, list);
   sql.exec(`DELETE FROM bookmark_tags WHERE bookmark_id ${IN_IDS}`, list);
   sql.exec(`DELETE FROM bookmarks WHERE id ${IN_IDS}`, list);
+  await deleteObjects(bucket, keys);
 }
 
 /** Attaches every one of `names` to each bookmark, creating tags that do not exist yet; other tags stay. */

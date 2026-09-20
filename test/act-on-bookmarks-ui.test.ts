@@ -76,8 +76,8 @@ describe("Per-item actions", () => {
   it("renders buttons on the active list", async () => {
     const html = await page("/bookmarks");
 
-    expect(await buttons(html, "#bookmark-1")).toEqual(["Archive", "Delete", "Mark read"]);
-    expect(await buttons(html, "#bookmark-2")).toEqual(["Archive", "Delete"]);
+    expect(await buttons(html, "#bookmark-1")).toEqual(["Archive", "Delete", "Mark read", "Snapshot"]);
+    expect(await buttons(html, "#bookmark-2")).toEqual(["Archive", "Delete", "Snapshot"]);
     const del = (await select(html, "#bookmark-1 button")).find((b) => b.text === "Delete");
     expect(del?.attrs["data-on:click"]).toContain("confirm(");
     expect(await signalsOf(html)).toMatchObject({
@@ -92,7 +92,7 @@ describe("Per-item actions", () => {
   });
 
   it("renders buttons on the archive", async () => {
-    expect(await buttons(await page("/bookmarks/archived"), "#bookmark-3")).toEqual(["Unarchive", "Delete"]);
+    expect(await buttons(await page("/bookmarks/archived"), "#bookmark-3")).toEqual(["Unarchive", "Delete", "Snapshot"]);
   });
 
   it("archives, patching the list and sidebar", async () => {

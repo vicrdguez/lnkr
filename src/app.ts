@@ -6,6 +6,7 @@ import { api } from "./api";
 import { requireSession } from "./auth/session";
 import { ping } from "./db/schema";
 import type { User } from "./db/users";
+import { assets } from "./ui/assets";
 import { auth } from "./ui/auth";
 import { bookmarkActions } from "./ui/bookmark_actions";
 import { bookmarkForm } from "./ui/bookmark_form";
@@ -46,6 +47,7 @@ export function createApp({ sql, transaction }: AppDeps): Hono<AppEnv> {
   app.route("/", bookmarkPages);
   app.route("/", bookmarkForm);
   app.route("/", bookmarkActions);
+  app.route("/", assets);
 
   return app;
 }

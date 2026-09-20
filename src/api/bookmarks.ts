@@ -91,7 +91,10 @@ bookmarks.get("/bookmarks/check", async (c) => {
   return c.json({ bookmark: existing ? bookmarkJson(sql, existing) : null, metadata, auto_tags: [] });
 });
 
-/** Creates the bookmark, or updates the one that already has its URL; either way 201. */
+/**
+ * Creates the bookmark, or updates the one that already has its URL; either way 201. `disable_html_snapshot` in the
+ * query is accepted and ignored: Snapshots are only ever taken by hand.
+ */
 bookmarks.post("/bookmarks", async (c) => {
   const body = await jsonBody(c);
   if (!body) return parseError(c);
@@ -140,8 +143,8 @@ async function update(c: Context<AppEnv>, patch: boolean) {
 bookmarks.put("/bookmarks/:id", (c) => update(c, false));
 bookmarks.patch("/bookmarks/:id", (c) => update(c, true));
 
-bookmarks.delete("/bookmarks/:id", (c) =>
-  deleteBookmark(c.get("sql"), intParam(c, "id")) ? c.body(null, 204) : notFound(c),
+bookmarks.delete("/bookmarks/:id", async (c) =>
+  (await deleteBookmark(c.get("sql"), c.env.ASSETS_BUCKET, intParam(c, "id"))) ? c.body(null, 204) : notFound(c),
 );
 
 const archive = (archived: boolean) => (c: Context<AppEnv>) =>

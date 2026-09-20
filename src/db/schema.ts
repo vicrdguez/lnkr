@@ -51,6 +51,19 @@ export const migrations: string[] = [
     key TEXT PRIMARY KEY,
     created TEXT NOT NULL
   );`,
+  `CREATE TABLE assets (
+    id INTEGER PRIMARY KEY,
+    bookmark_id INTEGER NOT NULL REFERENCES bookmarks(id),
+    asset_type TEXT NOT NULL DEFAULT 'snapshot',
+    content_type TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    r2_key TEXT NOT NULL,
+    file_size INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'complete', 'failure')),
+    date_created TEXT NOT NULL
+  );
+  CREATE INDEX assets_bookmark ON assets(bookmark_id, date_created);
+  ALTER TABLE bookmarks ADD COLUMN latest_snapshot_id INTEGER REFERENCES assets(id);`,
 ];
 
 /** Applies every pending migration; safe to run again. */

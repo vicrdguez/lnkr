@@ -1,4 +1,5 @@
 import type { FC } from "hono/jsx";
+import type { AssetRow } from "../db/assets";
 import type { User } from "../db/users";
 import { DOCTYPE, ErrorMessage, Layout } from "./layout";
 
@@ -29,7 +30,9 @@ export const BookmarkForm: FC<{
   values: FormValues;
   autoClose?: boolean;
   error?: string;
-}> = ({ user, title, action, values, autoClose, error }) => (
+  /** The Bookmark's Assets, listed under the edit form only. */
+  assets?: AssetRow[];
+}> = ({ user, title, action, values, autoClose, error, assets }) => (
   <Layout title={title} user={user}>
     <ErrorMessage message={error} />
     {/* DEBT(#27/W1): Datastar rewrites @name( even inside these JSON string literals, so a value holding text like @Component( fails to compile and the form's live behaviors never start. */}
@@ -66,7 +69,34 @@ export const BookmarkForm: FC<{
       </label>
       <button>Save</button>
     </form>
+    {assets && <Snapshots assets={assets} />}
   </Layout>
+);
+
+/** The Bookmark's Snapshots, newest first: a view link once complete, and Delete, which asks first. */
+const Snapshots: FC<{ assets: AssetRow[] }> = ({ assets }) => (
+  <section id="snapshots">
+    <h2>Snapshots</h2>
+    {assets.length > 0 && (
+      <ul>
+        {assets.map((asset) => (
+          <li>
+            {asset.status === "complete" ? <a href={`/assets/${asset.id}`}>{asset.display_name}</a> : asset.display_name}{" "}
+            <span class="status">{asset.status}</span>{" "}
+            {asset.status === "complete" && <span class="size">{(asset.file_size / 1024).toFixed(1)} KB</span>}{" "}
+            <form method="post" action={`/assets/${asset.id}/delete`}>
+              <button
+                aria-label={`Delete ${asset.display_name}`}
+                data-on:click="confirm('Delete this snapshot?') || evt.preventDefault()"
+              >
+                Delete
+              </button>
+            </form>
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
 );
 
 /** The notice under the URL field; empty unless the URL belongs to Bookmark `id`. */
