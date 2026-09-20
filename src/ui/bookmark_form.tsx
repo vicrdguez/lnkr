@@ -1,6 +1,7 @@
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
 import { readSignals, requireDatastar, sse, text } from "../datastar";
+import { type AssetRow, listAssets } from "../db/assets";
 import {
   type BookmarkRow,
   EMPTY_BOOKMARK,
@@ -36,7 +37,7 @@ const formPage = (
   title: string,
   action: string,
   values: FormValues,
-  rest: { autoClose?: boolean; error?: string } = {},
+  rest: { autoClose?: boolean; error?: string; assets?: AssetRow[] } = {},
 ) => <BookmarkForm user={c.get("user")} title={title} action={action} values={values} {...rest} />;
 
 export const bookmarkForm = new Hono<AppEnv>();
@@ -108,7 +109,8 @@ const EDIT_PATH = "/bookmarks/:id{[0-9]+}/edit";
 bookmarkForm.get(EDIT_PATH, (c) => {
   const sql = c.get("sql");
   const row = getBookmark(sql, Number(c.req.param("id")));
-  return row ? c.html(formPage(c, "Edit bookmark", c.req.path, formValues(sql, row))) : c.notFound();
+  if (!row) return c.notFound();
+  return c.html(formPage(c, "Edit bookmark", c.req.path, formValues(sql, row), { assets: listAssets(sql, row.id) }));
 });
 
 /** Replaces the Bookmark's fields and tags; its URL may move only onto one no other Bookmark has. */
@@ -119,7 +121,7 @@ bookmarkForm.post(EDIT_PATH, async (c) => {
   const existing = getBookmark(sql, Number(c.req.param("id")));
   if (!existing) return c.notFound();
   const reject = (error: string) =>
-    c.html(formPage(c, "Edit bookmark", c.req.path, { ...values, id: existing.id }, { error }), 400);
+    c.html(formPage(c, "Edit bookmark", c.req.path, { ...values, id: existing.id }, { error, assets: listAssets(sql, existing.id) }), 400);
   if (!isHttpUrl(values.url)) return reject("Enter a valid URL.");
   const owner = findBookmarkByUrl(sql, values.url);
   if (owner && owner.id !== existing.id) return reject("A bookmark with this URL already exists.");

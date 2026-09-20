@@ -159,3 +159,43 @@ describe("Take a snapshot from the list", () => {
     expect(found.results[0].status).toBe("complete");
   });
 });
+
+describe("View and delete snapshots", () => {
+  const STORED = "<html><body>kept</body></html>";
+
+  /** The background: `B` has the completed Snapshot 1 holding `STORED`. */
+  beforeEach(async () => {
+    mockRender(STORED);
+    await snapshot();
+  });
+
+  it("serves a snapshot sandboxed", async () => {
+    const response = await get("/assets/1", { cookie });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
+    expect(response.headers.get("content-security-policy")).toBe("sandbox");
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(await response.text()).toBe(STORED);
+  });
+
+  it("needs a session to view", async () => {
+    const response = await get("/assets/1");
+
+    expect(response.status).toBe(302);
+    expect(location(response).href).toBe(`${BASE}/login?next=%2Fassets%2F1`);
+  });
+
+  it("answers 404 for an unknown asset", async () => {
+    expect((await get("/assets/999", { cookie })).status).toBe(404);
+  });
+
+  it("lists snapshots on the edit page", async () => {
+    const html = await page(`/bookmarks/${id}/edit`);
+
+    const [section] = await select(html, "section#snapshots");
+    expect(section.text).toContain("complete");
+    expect((await select(html, "#snapshots a")).map((a) => a.attrs.href)).toContain("/assets/1");
+    expect((await select(html, "#snapshots form")).map((form) => form.attrs.action)).toEqual(["/assets/1/delete"]);
+  });
+});
