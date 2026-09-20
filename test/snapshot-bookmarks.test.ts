@@ -117,4 +117,45 @@ describe("Take a snapshot from the list", () => {
     expect(html).toContain("Snapshot failed");
     expect((await assets()).results[0].status).toBe("failure");
   });
+
+  it("refuses a second snapshot within ten seconds without calling out", async () => {
+    const calls = mockRender(KEPT);
+    const start = Date.now();
+    vi.setSystemTime(start);
+    await snapshot();
+    vi.setSystemTime(start + 5_000);
+
+    const html = await snapshot();
+
+    expect(html).toContain("Wait ten seconds between snapshots");
+    expect(calls).toHaveLength(1);
+    expect((await assets()).count).toBe(1);
+  });
+
+  it("takes a new snapshot after ten seconds, which becomes the latest", async () => {
+    mockRender(KEPT);
+    const start = Date.now();
+    vi.setSystemTime(start);
+    await snapshot();
+    vi.setSystemTime(start + 11_000);
+    mockRender("<html>second</html>");
+
+    const html = await snapshot();
+
+    expect((await assets()).results.map((asset) => [asset.id, asset.status])).toEqual([[2, "complete"], [1, "complete"]]);
+    expect(await dateLink(html)).toBe("/assets/2");
+    expect(await (await get("/assets/2", { cookie })).text()).toBe("<html>second</html>");
+  });
+
+  it("returns to the list after a plain form post", async () => {
+    mockRender(KEPT);
+
+    const response = await formPost(`/bookmarks/${id}/snapshot`, {}, { cookie });
+
+    expect(response.status).toBe(302);
+    expect(location(response).href).toBe(`${BASE}/bookmarks`);
+    const found = await assets();
+    expect(found.count).toBe(1);
+    expect(found.results[0].status).toBe("complete");
+  });
 });
