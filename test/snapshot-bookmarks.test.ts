@@ -74,4 +74,17 @@ describe("Take a snapshot from the list", () => {
     const button = (await select(html, `#bookmark-${id} button`)).find((b) => b.text === "Snapshot");
     expect(button?.attrs["data-on:click"]).toBe(`@post('/bookmarks/${id}/snapshot')`);
   });
+
+  it("renders the page and stores it", async () => {
+    const calls = mockRender(KEPT);
+
+    const html = await snapshot();
+
+    expect(calls).toEqual([{ authorization: "Bearer tok", body: { url: "https://example.com/a" } }]);
+    expect(html).toContain(`<li id="bookmark-${id}"`);
+    expect(await dateLink(html)).toBe("/assets/1");
+    const stored = await get("/assets/1", { cookie });
+    expect(stored.status).toBe(200);
+    expect(await stored.text()).toContain("kept");
+  });
 });

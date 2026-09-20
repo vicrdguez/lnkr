@@ -36,7 +36,8 @@ const SORT_LABELS: Record<ListSort, string> = {
 
 const pathOf = (archived: boolean) => (archived ? "/bookmarks/archived" : "/bookmarks");
 
-const linkTo = ({ archived, params }: Listing): LinkTo => (changes) => pageUrl(pathOf(archived), params, changes);
+export const linkTo = ({ archived, params }: Pick<Listing, "archived" | "params">): LinkTo => (changes) =>
+  pageUrl(pathOf(archived), params, changes);
 
 /** The signals the page declares: its query as the actions post it back, the page kind, and an empty selection. */
 // DEBT(#28/W3): Datastar rewrites @name( even inside this JSON's string literals, so a search holding text like @Component( leaves the page's signals undeclared and its actions post without them.
@@ -195,7 +196,8 @@ const Sidebar: FC<{ tags: Listing["tags"]; q: string; link: LinkTo }> = ({ tags,
   );
 };
 
-const BookmarkItem: FC<{
+/** One list item; the Snapshot action re-renders it alone, with `message` saying why no Snapshot was stored. */
+export const BookmarkItem: FC<{
   row: BookmarkRow;
   tags: string[];
   archived: boolean;
@@ -203,7 +205,8 @@ const BookmarkItem: FC<{
   now: number;
   faviconProvider: string | null;
   snapshotButton: boolean;
-}> = ({ row, tags, archived, link, now, faviconProvider, snapshotButton }) => {
+  message?: string;
+}> = ({ row, tags, archived, link, now, faviconProvider, snapshotButton, message }) => {
   const name = row.title || row.url;
   return (
     <li id={`bookmark-${row.id}`} class={row.unread ? "unread" : undefined}>
@@ -228,10 +231,19 @@ const BookmarkItem: FC<{
           <pre>{row.notes}</pre>
         </details>
       )}
+      {message && (
+        <p class="hint" role="status">
+          {message}
+        </p>
+      )}
       <p class="actions">
         <a
           class="date"
-          href={`https://web.archive.org/web/${archiveTimestamp(row.date_added)}/${row.url}`}
+          href={
+            row.latest_snapshot_id
+              ? `/assets/${row.latest_snapshot_id}`
+              : `https://web.archive.org/web/${archiveTimestamp(row.date_added)}/${row.url}`
+          }
           title={absoluteDate(row.date_added)}
           target="_blank"
           rel="noopener"

@@ -12,6 +12,8 @@ export type BookmarkRow = {
   shared: number;
   date_added: string;
   date_modified: string;
+  /** The newest complete Snapshot, kept by `refreshLatestSnapshot`; null without one. */
+  latest_snapshot_id: number | null;
 };
 
 /** Every writable field; booleans here, integers in the row. */

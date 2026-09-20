@@ -1,6 +1,6 @@
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
-import { readSignals, requireDatastar, sse, text } from "../datastar";
+import { isDatastar, readSignals, requireDatastar, sse, text } from "../datastar";
 import {
   bulkAddTags,
   bulkDelete,
@@ -9,9 +9,11 @@ import {
   bulkSetUnread,
   getBookmark,
   idsMatching,
+  tagNamesOf,
 } from "../db/bookmarks";
 import { pageParams, parsePageSignals } from "../lib/signals";
-import { ListFragments } from "../views/bookmark_list";
+import { takeSnapshot } from "../services/snapshots";
+import { BookmarkItem, ListFragments, linkTo } from "../views/bookmark_list";
 import { displayFor, listFilter, listing } from "./bookmarks";
 
 type Apply = (sql: SqlStorage, ids: number[], now: string, names: string[]) => void;
@@ -90,4 +92,33 @@ bookmarkActions.post("/bookmarks/bulk", requireDatastar, async (c) => {
   );
   if (ids.length) ACTIONS[signals.action](sql, ids, new Date().toISOString(), text(signals.bulkTags).split(/\s+/));
   return respond(c, signals, true);
+});
+
+/**
+ * Takes a Snapshot of the Bookmark. From Datastar it streams the item re-rendered, its message slot saying why no
+ * Snapshot was stored when so; a failed render is still 200 because the client ignores other bodies. A plain form
+ * post lands back on the list once the render is over.
+ */
+bookmarkActions.post("/bookmarks/:id{[0-9]+}/snapshot", async (c) => {
+  const signals = isDatastar(c) ? await readSignals(c) : null;
+  if (isDatastar(c) && !signals) return c.text("JSON body required", 400);
+  const sql = c.get("sql");
+  const id = Number(c.req.param("id"));
+  const row = getBookmark(sql, id);
+  if (!row) return c.notFound();
+  const now = new Date().toISOString();
+  if (!signals) {
+    await takeSnapshot(sql, c.env, row, now);
+    return c.redirect("/bookmarks");
+  }
+  const archived = signals.archived === true;
+  const view = { archived, params: pageParams(parsePageSignals(signals)), now: Date.now(), ...displayFor(c) };
+  return sse(async (stream) => {
+    const message = (await takeSnapshot(sql, c.env, row, now)) ?? undefined;
+    const fresh = getBookmark(sql, id);
+    if (!fresh) return;
+    stream.patchElements(
+      String(<BookmarkItem row={fresh} tags={tagNamesOf(sql, id)} link={linkTo(view)} message={message} {...view} />),
+    );
+  });
 });
