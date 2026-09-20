@@ -121,3 +121,51 @@ describe("Bundle composition", () => {
     expect(await response.json()).toEqual({ bundle: ["Invalid bundle."] });
   });
 });
+
+/** The HTML of `path` for the session, expecting `status`. */
+async function page(path: string, status = 200): Promise<string> {
+  const response = await get(path, { cookie });
+  expect(response.status).toBe(status);
+  return response.text();
+}
+
+/** The Bundle names `/bundles` lists, in order. */
+const listed = async () => (await select(await page("/bundles"), "#bundle-list li a.name")).map((a) => a.text);
+
+/** The bundles API's list, expecting 200. */
+async function apiList(): Promise<{ count: number; results: Json[] }> {
+  const response = await api(token).get("/api/bundles/");
+  expect(response.status).toBe(200);
+  return response.json();
+}
+
+describe("Bundle pages", () => {
+  const post = (path: string, fields: Record<string, string>) => formPost(path, fields, { cookie });
+
+  it("creates a bundle", async () => {
+    const response = await post("/bundles/new", {
+      name: "Py web",
+      search: "docs",
+      any_tags: "python",
+      all_tags: "web",
+      excluded_tags: "rust",
+    });
+
+    expect(response.status).toBe(302);
+    expect(location(response).pathname).toBe("/bundles");
+    expect(await listed()).toEqual(["Py web"]);
+    const { count, results } = await apiList();
+    expect(count).toBe(1);
+    expect(results[0]).toMatchObject({ name: "Py web", search: "docs", any_tags: "python", all_tags: "web", excluded_tags: "rust", order: 0 });
+  });
+
+  it("requires a name", async () => {
+    const response = await post("/bundles/new", { name: "", search: "docs" });
+
+    expect(response.status).toBe(400);
+    const html = await response.text();
+    expect(await select(html, 'form input[name="name"]')).toHaveLength(1);
+    expect(await select(html, "p.error")).toHaveLength(1);
+    expect((await apiList()).count).toBe(0);
+  });
+});
