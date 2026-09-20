@@ -17,7 +17,8 @@ export const ITEMS_PER_PAGE = 30;
  */
 export const listFilter = (sql: SqlStorage, archived: boolean, { q, unread, bundle }: PageSignals): ListFilter => {
   const row = bundle === null ? null : getBundle(sql, bundle);
-  return { archived, unread, search: compileSearch(q) ?? MATCH_NONE, bundle: row ? bundleFilter(row) ?? MATCH_NONE : undefined };
+  const search = compileSearch(q) ?? MATCH_NONE;
+  return { archived, unread, search, bundle: row ? bundleFilter(row) ?? MATCH_NONE : undefined };
 };
 
 /** What the request decides about how items display: the favicon provider while Favicons is on, the Snapshot button while configured. */
@@ -36,6 +37,12 @@ export function listing(
   display: Display,
 ): Listing {
   const filter = listFilter(sql, archived, signals);
+  if (signals.bundle !== null && !filter.bundle) {
+    // An unknown Bundle is ignored: the page reads as if the parameter were absent.
+    signals = { ...signals, bundle: null };
+    params = new URLSearchParams(params);
+    params.delete("bundle");
+  }
   const count = countBookmarks(sql, filter);
   const pages = Math.max(Math.ceil(count / ITEMS_PER_PAGE), 1);
   const page = Math.min(signals.page, pages);

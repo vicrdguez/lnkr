@@ -6,7 +6,7 @@ export const MATCH_ALL: SearchFilter = { where: "1 = 1", params: [] };
 export const MATCH_NONE: SearchFilter = { where: "0 = 1", params: [] };
 
 /** Durable Object SQLite binds at most one hundred parameters; the list query needs a few of its own. */
-const PARAM_BUDGET = 90;
+export const PARAM_BUDGET = 90;
 
 const TEXT_COLUMNS = ["title", "description", "notes", "url"];
 

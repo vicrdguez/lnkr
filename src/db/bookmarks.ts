@@ -1,4 +1,4 @@
-import { MATCH_ALL, type SearchFilter } from "../search";
+import { MATCH_ALL, MATCH_NONE, PARAM_BUDGET, type SearchFilter } from "../search";
 import { deleteObjects } from "./assets";
 import { ensureTag, normalizeTagNames } from "./tags";
 
@@ -204,11 +204,15 @@ export type ListFilter = {
 
 /** The `WHERE` over the alias `b` for `filter`, shared by the list, its count and the tag sidebar so they never disagree. */
 function whereFor(filter: ListFilter): { where: string; params: (string | number)[] } {
-  const search = filter.search ?? MATCH_ALL;
-  const bundle = filter.bundle ?? MATCH_ALL;
+  let search = filter.search ?? MATCH_ALL;
+  let bundle = filter.bundle ?? MATCH_ALL;
+  // compileSearch keeps each within the budget alone; together, or with a Bundle's tag names, they can pass it, and
+  // then nothing matches, as for a q that needs too many parameters.
+  if (search.params.length + bundle.params.length > PARAM_BUDGET) [search, bundle] = [MATCH_NONE, MATCH_ALL];
   // Absent date filters compare against "", which every ISO timestamp exceeds.
   const conditions = ["b.is_archived = ?", search.where, bundle.where, "b.date_modified >= ?", "b.date_added >= ?"];
-  const params = [+filter.archived, ...search.params, ...bundle.params, filter.modifiedSince ?? "", filter.addedSince ?? ""];
+  const params = [+filter.archived, ...search.params, ...bundle.params];
+  params.push(filter.modifiedSince ?? "", filter.addedSince ?? "");
   if (filter.unread) conditions.push("b.unread = 1");
   if (filter.ids) {
     conditions.push(`b.id ${IN_IDS}`);

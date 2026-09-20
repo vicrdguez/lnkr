@@ -33,7 +33,10 @@ export const BundleList: FC<{ user: User; bundles: BundleRow[] }> = ({ user, bun
             Edit
           </a>
           <form method="post" action={`/bundles/${bundle.id}/delete`}>
-            <button aria-label={`Delete ${bundle.name}`} data-on:click="confirm('Delete this bundle?') || evt.preventDefault()">
+            <button
+              aria-label={`Delete ${bundle.name}`}
+              data-on:click="confirm('Delete this bundle?') || evt.preventDefault()"
+            >
               Delete
             </button>
           </form>

@@ -99,7 +99,7 @@ describe("Bundle composition", () => {
     ["", "", "", "web", "c.test, b.test"],
     ["", "PYTHON", "", "DOCS", "b.test, a.test"],
     ["not docs", "python", "web", "", "a.test"],
-    ["( docs", "", "", "", ""],
+    ["(docs", "", "", "", ""],
   ])("search %j, any %j, all %j, excluded %j restricts the result", async (search, any_tags, all_tags, excluded_tags, results) => {
     const { id } = await createBundle({ name: "B", search, any_tags, all_tags, excluded_tags });
 
@@ -112,6 +112,16 @@ describe("Bundle composition", () => {
     const rust = await api(token).get("/api/bookmarks/?bundle=1&q=rust");
     expect((await rust.json<{ count: number }>()).count).toBe(0);
     expect(await hosts("/api/bookmarks/?bundle=1&q=%23web")).toEqual(["d.test", "a.test"]);
+  });
+
+  it("finds nothing when a bundle needs too many parameters", async () => {
+    const names = Array.from({ length: 100 }, (_, n) => `t${n}`).join(" ");
+    const { id } = await createBundle({ name: "Wide", any_tags: names });
+
+    const response = await api(token).get(`/api/bookmarks/?bundle=${id}`);
+
+    expect(response.status).toBe(200);
+    expect((await response.json<{ count: number }>()).count).toBe(0);
   });
 
   it("refuses an unknown bundle on the bookmarks API", async () => {
@@ -269,7 +279,12 @@ describe("Sidebar and list filtering", () => {
   });
 
   it("ignores an unknown bundle", async () => {
-    expect(await titles(await page("/bookmarks?bundle=999"))).toEqual(["Django docs", "C", "B", "A"]);
+    const html = await page("/bookmarks?bundle=999");
+
+    expect(await titles(html)).toEqual(["Django docs", "C", "B", "A"]);
+    expect((await select(html, "#bundles a")).map((a) => a.text)).toEqual(["Py", "Docs"]);
+    expect(await signalsOf(html)).toMatchObject({ bundle: "" });
+    expect(await link(html, "Next")).toBeUndefined();
   });
 
   it("keeps the bundle in page links", async () => {
@@ -282,7 +297,7 @@ describe("Sidebar and list filtering", () => {
   });
 });
 
-describe("Actions keep the bundle view", () => {
+describe("Actions keep the applied bundle", () => {
   const DATASTAR = { "datastar-request": "true" };
   const SIGNALS = { q: "", sort: "added_desc", unread: "", page: 1, bundle: "1" };
 
@@ -300,7 +315,7 @@ describe("Actions keep the bundle view", () => {
     await createBundle({ name: "Py", any_tags: "python" });
   });
 
-  it("re-renders the bundle view after an item action", async () => {
+  it("re-renders the list with the bundle applied after an item action", async () => {
     const html = await patched("/bookmarks/1/archive", SIGNALS);
 
     expect(html).toContain('<ul id="bookmark-list"');

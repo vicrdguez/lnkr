@@ -47,10 +47,17 @@ export function insertBundle(sql: SqlStorage, input: BundleInput, now: string, o
 }
 
 /** Replaces the given text fields, bumps `date_modified`, and moves the Bundle to position `order` when given. */
-export function updateBundle(sql: SqlStorage, id: number, patch: Partial<BundleInput>, now: string, order?: number): BundleRow {
+export function updateBundle(
+  sql: SqlStorage,
+  id: number,
+  patch: Partial<BundleInput>,
+  now: string,
+  order?: number,
+): BundleRow {
   const { name, search, any_tags, all_tags, excluded_tags } = { ...readBundle(sql, id), ...patch };
   sql.exec(
-    `UPDATE bundles SET name = ?, search = ?, any_tags = ?, all_tags = ?, excluded_tags = ?, date_modified = ? WHERE id = ?`,
+    `UPDATE bundles SET name = ?, search = ?, any_tags = ?, all_tags = ?, excluded_tags = ?, date_modified = ?
+     WHERE id = ?`,
     name, search, any_tags, all_tags, excluded_tags, now, id,
   );
   if (order !== undefined) placeBundle(sql, id, order);
@@ -94,9 +101,9 @@ const tagList = (text: string): string[] => normalizeTagNames(text.split(/\s+/))
 /**
  * The Bundle as a filter over the bookmarks alias `b`: its search compiled by the query grammar, `any_tags` needing
  * one of the names, `all_tags` every name and `excluded_tags` none, all ANDed; an empty part imposes nothing. Null
- * when the search does not parse, which makes the list empty like a bad `q`.
+ * when the search does not parse, which makes the list empty like a bad `q`. Each name binds one parameter; the
+ * list's `WHERE` builder keeps the whole within the budget.
  */
-// ponytail: the lists bind one parameter per name on top of the search's; a Bundle of dozens of tags beside a long q can pass SQLite's hundred.
 export function bundleFilter(bundle: BundleRow): SearchFilter | null {
   const search = compileSearch(bundle.search);
   if (!search) return null;

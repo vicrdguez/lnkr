@@ -101,7 +101,7 @@ export const ListFragments: FC<Listing & { bulkBar: boolean }> = ({ bulkBar, ...
 };
 
 /** Submits `q` by GET to the page, keeping a non-default sort, the unread filter and the Bundle as hidden inputs. */
-const SearchForm: FC<{ path: string; q: string; sort: ListSort; unread: boolean; bundle: number | null; link: LinkTo }> = ({
+const SearchForm: FC<Pick<Listing, "q" | "sort" | "unread" | "bundle"> & { path: string; link: LinkTo }> = ({
   path,
   q,
   sort,
@@ -193,8 +193,14 @@ const Pagination: FC<{ page: number; pages: number; link: LinkTo }> = ({ page, p
   </nav>
 );
 
-/** The Bundles section, when there is a Bundle, then the tags of the whole result; the active Bundle is marked and can be cleared. */
-const Sidebar: FC<Pick<Listing, "tags" | "q" | "bundles" | "bundle"> & { link: LinkTo }> = ({ tags, q, bundles, bundle, link }) => {
+/** The Bundles section while there is a Bundle, the applied one marked and clearable, then the tags of the whole result. */
+const Sidebar: FC<Pick<Listing, "tags" | "q" | "bundles" | "bundle"> & { link: LinkTo }> = ({
+  tags,
+  q,
+  bundles,
+  bundle,
+  link,
+}) => {
   const selected = new Set(tagsIn(q));
   return (
     <aside id="sidebar">

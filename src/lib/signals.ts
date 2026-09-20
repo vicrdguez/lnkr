@@ -10,11 +10,9 @@ export type PageSignals = {
   bundle: number | null;
 };
 
-/** `value` as a positive integer, else null. */
-const positiveInt = (value: unknown): number | null => {
-  const n = Number(value);
-  return Number.isInteger(n) && n > 0 ? n : null;
-};
+/** `value`, a string or number, as a positive integer when it is all digits; null otherwise. */
+export const positiveInt = (value: unknown): number | null =>
+  /^[1-9]\d*$/.test(String(value)) ? Number(value) : null;
 
 /** `raw` read with the list page's rules, from URL strings or JSON values; anything invalid falls back to its default. */
 export function parsePageSignals(raw: Record<string, unknown>): PageSignals {

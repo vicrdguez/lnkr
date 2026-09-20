@@ -58,6 +58,7 @@ export const bundles = new Hono<AppEnv>();
 bundles.get("/bundles", (c) => {
   const page = pageParams(c);
   const rows = listBundles(c.get("sql"));
+  // ponytail: pages in memory; a Tenant holds a handful of Bundles.
   return c.json(paginate(c, page, rows.length, rows.slice(page.offset, page.offset + page.limit).map(bundleJson)));
 });
 
@@ -76,7 +77,7 @@ bundles.get("/bundles/:id", (c) => {
   return row ? c.json(bundleJson(row)) : notFound(c);
 });
 
-/** PUT replaces every text field, emptying omitted ones; PATCH keeps what the body omits. Both leave `order` unless given. */
+/** PUT replaces every text field, emptying omitted ones; PATCH keeps what the body omits. `order` moves only when given. */
 async function update(c: Context<AppEnv>, patch: boolean) {
   const body = await jsonBody(c);
   if (!body) return parseError(c);
@@ -85,10 +86,13 @@ async function update(c: Context<AppEnv>, patch: boolean) {
   if (!existing) return notFound(c);
   const { fields, order, errors } = readFields(body, patch);
   if (errors) return invalid(c, errors);
-  const row = updateBundle(sql, existing.id, patch ? fields : { ...EMPTY_BUNDLE, ...fields }, new Date().toISOString(), order);
+  const input = patch ? fields : { ...EMPTY_BUNDLE, ...fields };
+  const row = updateBundle(sql, existing.id, input, new Date().toISOString(), order);
   return c.json(bundleJson(row));
 }
 bundles.put("/bundles/:id", (c) => update(c, false));
 bundles.patch("/bundles/:id", (c) => update(c, true));
 
-bundles.delete("/bundles/:id", (c) => (deleteBundle(c.get("sql"), intParam(c, "id")) ? c.body(null, 204) : notFound(c)));
+bundles.delete("/bundles/:id", (c) =>
+  deleteBundle(c.get("sql"), intParam(c, "id")) ? c.body(null, 204) : notFound(c),
+);
