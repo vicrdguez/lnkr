@@ -3,8 +3,9 @@ import type { AppEnv } from "../app";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { allBookmarks, tagNamesFor } from "../db/bookmarks";
 import { importEntries } from "../db/import";
-import { createToken, currentToken, deleteTokens } from "../db/tokens";
+import { type ApiToken, createApiToken, deleteApiToken, getOrCreateFeedToken, listApiTokens } from "../db/tokens";
 import { updatePassword, type User } from "../db/users";
+import { absoluteDate } from "../lib/dates";
 import { readPrefs, writePrefs } from "../prefs";
 import { entryOf, parseNetscape, renderNetscape } from "../services/netscape";
 import { ErrorMessage, Field, Layout } from "../views/layout";
@@ -14,9 +15,19 @@ import { formFields } from "./form";
 const bookmarklet = (origin: string) =>
   `javascript:window.open('${origin}/bookmarks/new?url='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)+'&auto_close')`;
 
-type Messages = { error?: string; notice?: string };
+type SettingsProps = {
+  user: User;
+  tokens: ApiToken[];
+  feedToken: string;
+  origin: string;
+  /** The key of a token created by this request, shown this once. */
+  newToken?: string;
+  error?: string;
+  /** The outcome of an action this request performed, such as import counts. */
+  notice?: string;
+};
 
-const SettingsPage = ({ user, token, origin, error, notice }: { user: User; token: string; origin: string } & Messages) => (
+const SettingsPage = ({ user, tokens, feedToken, origin, newToken, error, notice }: SettingsProps) => (
   <Layout title="Settings" user={user} section="settings">
     <ErrorMessage message={error} />
     {notice && <p role="status">{notice}</p>}
@@ -24,13 +35,33 @@ const SettingsPage = ({ user, token, origin, error, notice }: { user: User; toke
     <p>
       Drag this link to your bookmarks bar: <a href={bookmarklet(origin)}>Save to lnkr</a>
     </p>
-    <h2>API token</h2>
-    <p>
-      <code id="api-token">{token}</code>
-    </p>
-    <form method="post" action="/settings/token/regenerate">
-      <button>Regenerate</button>
+    <h2>Integrations</h2>
+    <h3>API tokens</h3>
+    {newToken && (
+      <p>
+        Copy your new token now, it is not shown again: <code id="new-token">{newToken}</code>
+      </p>
+    )}
+    <ul id="api-tokens">
+      {tokens.map((token) => (
+        <li class="actions">
+          <span class="name">{token.name || "Default"}</span>
+          <time datetime={token.created}>{absoluteDate(token.created)}</time>
+          <form method="post" action={`/settings/tokens/${token.id}/revoke`}>
+            <button>Revoke</button>
+          </form>
+        </li>
+      ))}
+    </ul>
+    <form method="post" action="/settings/tokens">
+      <Field label="Name" name="name" />
+      <button>Create token</button>
     </form>
+    <h3>Feeds</h3>
+    <p>
+      <a id="feed-all" href={`${origin}/feeds/${feedToken}/all`}>All bookmarks</a> ·{" "}
+      <a id="feed-unread" href={`${origin}/feeds/${feedToken}/unread`}>Unread bookmarks</a>
+    </p>
     <h2>Favicons</h2>
     <form method="post" action="/settings/favicons">
       <label class="checkbox">
@@ -67,11 +98,12 @@ const SettingsPage = ({ user, token, origin, error, notice }: { user: User; toke
   </Layout>
 );
 
-/** The settings page with the Tenant's token, created on first view. */
-const settingsPage = (c: Context<AppEnv>, messages: Messages = {}) => {
+/** The settings page with the Tenant's API tokens and its feed token, created on first view. */
+const settingsPage = (c: Context<AppEnv>, extra: Pick<SettingsProps, "newToken" | "error" | "notice"> = {}) => {
   const sql = c.get("sql");
-  const token = currentToken(sql) ?? createToken(sql, new Date().toISOString());
-  return <SettingsPage user={c.get("user")} token={token} origin={new URL(c.req.url).origin} {...messages} />;
+  const feedToken = getOrCreateFeedToken(sql, new Date().toISOString());
+  const origin = new URL(c.req.url).origin;
+  return <SettingsPage user={c.get("user")} tokens={listApiTokens(sql)} feedToken={feedToken} origin={origin} {...extra} />;
 };
 
 export const settings = new Hono<AppEnv>();
@@ -101,10 +133,15 @@ settings.post("/settings/import", async (c) => {
   return c.html(settingsPage(c, { notice: `${created} created, ${updated} updated, ${skipped} skipped` }));
 });
 
-settings.post("/settings/token/regenerate", (c) => {
-  const sql = c.get("sql");
-  deleteTokens(sql);
-  createToken(sql, new Date().toISOString());
+settings.post("/settings/tokens", async (c) => {
+  const name = (await formFields(c, "name")).name.trim();
+  if (!name) return c.html(settingsPage(c, { error: "A token needs a name." }), 400);
+  const { key } = createApiToken(c.get("sql"), name, new Date().toISOString());
+  return c.html(settingsPage(c, { newToken: key }));
+});
+
+settings.post("/settings/tokens/:id{[0-9]+}/revoke", (c) => {
+  deleteApiToken(c.get("sql"), Number(c.req.param("id")));
   return c.redirect("/settings");
 });
 
