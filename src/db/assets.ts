@@ -69,6 +69,7 @@ export async function deleteAsset(sql: SqlStorage, bucket: R2Bucket, asset: Asse
 
 /** Removes stored copies once their rows are gone; a failure is logged, not surfaced. */
 // ponytail: orphaned objects are cheap; a sweep can come later.
+// DEBT(#32/W1): bucket.delete takes at most 1000 keys, so a bulk delete spanning more Snapshots than that throws here and orphans every one of them.
 export async function deleteObjects(bucket: R2Bucket, keys: string[]): Promise<void> {
   if (!keys.length) return;
   try {
