@@ -1,6 +1,15 @@
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
-import { type BundleInput, EMPTY_BUNDLE, insertBundle, listBundles } from "../db/bundles";
+import {
+  type BundleInput,
+  deleteBundle,
+  EMPTY_BUNDLE,
+  getBundle,
+  insertBundle,
+  listBundles,
+  moveBundle,
+  updateBundle,
+} from "../db/bundles";
 import { BundleForm, BundleList } from "../views/bundles";
 import { formFields } from "./form";
 
@@ -27,3 +36,27 @@ bundlePages.post("/bundles/new", async (c) => {
   insertBundle(c.get("sql"), values, new Date().toISOString());
   return c.redirect("/bundles");
 });
+
+const ID = "/bundles/:id{[0-9]+}";
+const idOf = (c: Context<AppEnv>) => Number(c.req.param("id"));
+
+bundlePages.get(`${ID}/edit`, (c) => {
+  const row = getBundle(c.get("sql"), idOf(c));
+  return row ? c.html(formPage(c, "Edit bundle", row)) : c.notFound();
+});
+
+/** Replaces the Bundle's text fields and lands back on the list. */
+bundlePages.post(`${ID}/edit`, async (c) => {
+  const values = await readForm(c);
+  const sql = c.get("sql");
+  if (!getBundle(sql, idOf(c))) return c.notFound();
+  if (!values.name) return c.html(formPage(c, "Edit bundle", values, "A bundle needs a name."), 400);
+  updateBundle(sql, idOf(c), values, new Date().toISOString());
+  return c.redirect("/bundles");
+});
+
+bundlePages.post(`${ID}/delete`, (c) => (deleteBundle(c.get("sql"), idOf(c)) ? c.redirect("/bundles") : c.notFound()));
+
+bundlePages.post(`${ID}/:direction{up|down}`, (c) =>
+  moveBundle(c.get("sql"), idOf(c), c.req.param("direction") as "up" | "down") ? c.redirect("/bundles") : c.notFound(),
+);

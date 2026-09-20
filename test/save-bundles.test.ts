@@ -168,4 +168,44 @@ describe("Bundle pages", () => {
     expect(await select(html, "p.error")).toHaveLength(1);
     expect((await apiList()).count).toBe(0);
   });
+
+  it("edits a bundle", async () => {
+    vi.setSystemTime(new Date("2026-09-20T10:00:00.000Z"));
+    await createBundle({ name: "Old" });
+    const form = await page("/bundles/1/edit");
+    expect((await select(form, 'form input[name="name"]'))[0].attrs.value).toBe("Old");
+
+    vi.setSystemTime(new Date("2026-09-20T10:05:00.000Z"));
+    const response = await post("/bundles/1/edit", { name: "New", any_tags: "rust" });
+
+    expect(response.status).toBe(302);
+    expect(location(response).pathname).toBe("/bundles");
+    const body = await (await api(token).get("/api/bundles/1/")).json<Json>();
+    expect(body).toMatchObject({ name: "New", any_tags: "rust", date_modified: "2026-09-20T10:05:00.000Z" });
+    expect(body.date_created).toBe("2026-09-20T10:00:00.000Z");
+  });
+
+  it("deletes a bundle", async () => {
+    await createBundle({ name: "Gone" });
+
+    const response = await post("/bundles/1/delete", {});
+
+    expect(response.status).toBe(302);
+    expect(location(response).pathname).toBe("/bundles");
+    expect((await api(token).get("/api/bundles/1/")).status).toBe(404);
+  });
+
+  it("reorders with up and down", async () => {
+    const first = await createBundle({ name: "First" });
+    await createBundle({ name: "Second" });
+    const third = await createBundle({ name: "Third" });
+
+    expect((await post(`/bundles/${third.id}/up`, {})).status).toBe(302);
+    expect(await listed()).toEqual(["First", "Third", "Second"]);
+
+    expect((await post(`/bundles/${first.id}/down`, {})).status).toBe(302);
+    expect(await listed()).toEqual(["Third", "First", "Second"]);
+    const { results } = await apiList();
+    expect(results.map((row) => [row.name, row.order])).toEqual([["Third", 0], ["First", 1], ["Second", 2]]);
+  });
 });
