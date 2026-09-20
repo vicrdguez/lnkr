@@ -190,6 +190,16 @@ describe("View and delete snapshots", () => {
     expect((await get("/assets/999", { cookie })).status).toBe(404);
   });
 
+  it("shows a failed snapshot as failed on the edit page", async () => {
+    vi.setSystemTime(Date.now() + 11_000);
+    network.use(http.post(RENDER, () => HttpResponse.error()));
+    await snapshot();
+
+    const [section] = await select(await page(`/bookmarks/${id}/edit`), "section#snapshots");
+
+    expect(section.text).toContain("failure");
+  });
+
   it("lists snapshots on the edit page", async () => {
     const html = await page(`/bookmarks/${id}/edit`);
 
@@ -224,6 +234,14 @@ describe("View and delete snapshots", () => {
 
     expect(response.status).toBe(204);
     expect((await get("/assets/1", { cookie })).status).toBe(404);
+  });
+
+  it("removes the snapshots when the list's Delete button deletes the bookmark", async () => {
+    const response = await jsonPost(`/bookmarks/${id}/delete`, ACTIVE, { cookie, headers: DATASTAR });
+
+    expect(response.status).toBe(200);
+    expect((await get("/assets/1", { cookie })).status).toBe(404);
+    expect((await api(token).get(`/api/bookmarks/${id}/`)).status).toBe(404);
   });
 });
 

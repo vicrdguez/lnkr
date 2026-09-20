@@ -121,7 +121,7 @@ bookmarkForm.post(EDIT_PATH, async (c) => {
   const existing = getBookmark(sql, Number(c.req.param("id")));
   if (!existing) return c.notFound();
   const reject = (error: string) =>
-    c.html(formPage(c, "Edit bookmark", c.req.path, { ...values, id: existing.id }, { error, assets: listAssets(sql, existing.id) }), 400);
+    c.html(formPage(c, "Edit bookmark", c.req.path, { ...values, id: existing.id }, { error }), 400);
   if (!isHttpUrl(values.url)) return reject("Enter a valid URL.");
   const owner = findBookmarkByUrl(sql, values.url);
   if (owner && owner.id !== existing.id) return reject("A bookmark with this URL already exists.");

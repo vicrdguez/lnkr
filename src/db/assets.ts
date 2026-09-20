@@ -1,4 +1,4 @@
-/** A Bookmark's stored file; a Snapshot is the only kind. `r2_key` names the object in `ASSETS_BUCKET`. */
+/** A Bookmark's stored copy of its page; a Snapshot is the only kind. `r2_key` names the object in `ASSETS_BUCKET`. */
 export type AssetRow = {
   id: number;
   bookmark_id: number;
@@ -58,7 +58,7 @@ export function newestAssetTime(sql: SqlStorage): string | null {
   return sql.exec<{ t: string | null }>("SELECT max(date_created) AS t FROM assets").one().t;
 }
 
-/** Deletes the Asset's row, moves its Bookmark's latest Snapshot on, then removes the stored file. */
+/** Deletes the Asset's row, moves its Bookmark's latest Snapshot on, then removes the stored copy. */
 export async function deleteAsset(sql: SqlStorage, bucket: R2Bucket, asset: AssetRow): Promise<void> {
   // Durable Object SQLite enforces foreign keys: the pointer goes before the row it names.
   sql.exec("UPDATE bookmarks SET latest_snapshot_id = NULL WHERE latest_snapshot_id = ?", asset.id);
@@ -67,7 +67,7 @@ export async function deleteAsset(sql: SqlStorage, bucket: R2Bucket, asset: Asse
   await deleteObjects(bucket, [asset.r2_key]);
 }
 
-/** Removes stored files once their rows are gone; a failure is logged, not surfaced. */
+/** Removes stored copies once their rows are gone; a failure is logged, not surfaced. */
 // ponytail: orphaned objects are cheap; a sweep can come later.
 export async function deleteObjects(bucket: R2Bucket, keys: string[]): Promise<void> {
   if (!keys.length) return;

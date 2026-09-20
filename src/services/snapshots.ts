@@ -28,6 +28,7 @@ export async function takeSnapshot(sql: SqlStorage, env: Env, bookmark: Bookmark
   const previous = newestAssetTime(sql);
   if (previous && Date.parse(now) - Date.parse(previous) < MIN_INTERVAL_MS) return "Wait ten seconds between snapshots";
   const asset = insertAsset(sql, bookmark.id, `HTML snapshot from ${absoluteDate(now)}`, now);
+  // ponytail: an object evicted mid-render leaves the row pending until it is deleted by hand; add a reaper when it happens.
   const size = await store(env, bookmark.url, asset.r2_key);
   // Only plain values cross the await; every row is addressed again by id.
   if (size === null) {

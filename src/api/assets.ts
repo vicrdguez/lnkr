@@ -46,7 +46,7 @@ assets.get("/bookmarks/:id/assets/:aid", (c) => {
   return asset ? c.json(toAssetJson(asset)) : notFound(c);
 });
 
-/** The stored file as an attachment named after the Asset; quotes and non-ASCII leave the filename. */
+/** The stored HTML for download, named after the Asset; quotes and non-ASCII leave the filename. */
 assets.get("/bookmarks/:id/assets/:aid/download", async (c) => {
   const asset = assetOf(c);
   const object = asset?.status === "complete" ? await c.env.ASSETS_BUCKET.get(asset.r2_key) : null;

@@ -90,7 +90,7 @@ export function saveBookmark(sql: SqlStorage, input: BookmarkInput, now: string,
   return row;
 }
 
-/** Deletes the bookmark with its tag attachments and Assets, stored files included; false when no such bookmark. */
+/** Deletes the bookmark with its tag attachments and Assets, stored copies included; false when no such bookmark. */
 export async function deleteBookmark(sql: SqlStorage, bucket: R2Bucket, id: number): Promise<boolean> {
   if (!getBookmark(sql, id)) return false;
   await bulkDelete(sql, bucket, [id]);
@@ -114,7 +114,7 @@ export function bulkSetUnread(sql: SqlStorage, ids: number[], unread: boolean, n
   sql.exec(`UPDATE bookmarks SET unread = ?, date_modified = ? WHERE id ${IN_IDS}`, +unread, now, JSON.stringify(ids));
 }
 
-/** Deletes the bookmarks with their tag attachments and Assets; the stored files go once the rows are gone. */
+/** Deletes the bookmarks with their tag attachments and Assets; the stored copies go once the rows are gone. */
 export async function bulkDelete(sql: SqlStorage, bucket: R2Bucket, ids: number[]): Promise<void> {
   const list = JSON.stringify(ids);
   const keys = sql

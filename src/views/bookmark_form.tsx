@@ -77,18 +77,25 @@ export const BookmarkForm: FC<{
 const Snapshots: FC<{ assets: AssetRow[] }> = ({ assets }) => (
   <section id="snapshots">
     <h2>Snapshots</h2>
-    {assets.length === 0 && <p class="empty">No snapshots yet</p>}
-    <ul>
-      {assets.map((asset) => (
-        <li>
-          {asset.status === "complete" ? <a href={`/assets/${asset.id}`}>{asset.display_name}</a> : asset.display_name}{" "}
-          <span class="status">{asset.status}</span> <span class="size">{(asset.file_size / 1024).toFixed(1)} KB</span>{" "}
-          <form method="post" action={`/assets/${asset.id}/delete`}>
-            <button data-on:click="confirm('Delete this snapshot?') || evt.preventDefault()">Delete</button>
-          </form>
-        </li>
-      ))}
-    </ul>
+    {assets.length > 0 && (
+      <ul>
+        {assets.map((asset) => (
+          <li>
+            {asset.status === "complete" ? <a href={`/assets/${asset.id}`}>{asset.display_name}</a> : asset.display_name}{" "}
+            <span class="status">{asset.status}</span>{" "}
+            {asset.status === "complete" && <span class="size">{(asset.file_size / 1024).toFixed(1)} KB</span>}{" "}
+            <form method="post" action={`/assets/${asset.id}/delete`}>
+              <button
+                aria-label={`Delete ${asset.display_name}`}
+                data-on:click="confirm('Delete this snapshot?') || evt.preventDefault()"
+              >
+                Delete
+              </button>
+            </form>
+          </li>
+        ))}
+      </ul>
+    )}
   </section>
 );
 
