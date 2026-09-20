@@ -281,3 +281,36 @@ describe("Sidebar and list filtering", () => {
     expect(await link(await page("/bookmarks?bundle=1"), "Next")).toBe("/bookmarks?bundle=1&page=2");
   });
 });
+
+describe("Actions keep the bundle view", () => {
+  const DATASTAR = { "datastar-request": "true" };
+  const SIGNALS = { q: "", sort: "added_desc", unread: "", page: 1, bundle: "1" };
+
+  /** The action's patched elements, expecting an SSE response. */
+  async function patched(path: string, signals: Json): Promise<string> {
+    const response = await jsonPost(path, signals, { cookie, headers: DATASTAR });
+    expect(response.status).toBe(200);
+    const events: SseEvent[] = parseSse(await response.text());
+    return events.filter((event) => event.event === "datastar-patch-elements").map((event) => event.data.elements).join("\n");
+  }
+
+  const archived = async (id: number) => (await (await api(token).get(`/api/bookmarks/${id}/`)).json<Json>()).is_archived;
+
+  beforeEach(async () => {
+    await createBundle({ name: "Py", any_tags: "python" });
+  });
+
+  it("re-renders the bundle view after an item action", async () => {
+    const html = await patched("/bookmarks/1/archive", SIGNALS);
+
+    expect(html).toContain('<ul id="bookmark-list"');
+    expect(await titles(html)).toEqual(["Django docs", "B"]);
+  });
+
+  it("applies select across to the bundle", async () => {
+    await patched("/bookmarks/bulk", { ...SIGNALS, action: "archive", selectAcross: true, selected: {} });
+
+    for (const id of [1, 2, 4]) expect(await archived(id)).toBe(true);
+    expect(await archived(3)).toBe(false);
+  });
+});
