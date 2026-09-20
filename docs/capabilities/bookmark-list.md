@@ -17,4 +17,4 @@ A person browses the Tenant's Bookmarks in the web app: the active list and the 
 ## Out of scope
 - Creating and editing from the UI
 - Display preferences: items per page, description modes, date display, link target, Tag grouping are fixed
-- Preview images, Snapshots, Bundles, keyboard shortcuts
+- Preview images, Snapshots, keyboard shortcuts
