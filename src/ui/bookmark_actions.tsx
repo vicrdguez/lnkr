@@ -12,7 +12,7 @@ import {
 } from "../db/bookmarks";
 import { pageParams, parsePageSignals } from "../lib/signals";
 import { ListFragments } from "../views/bookmark_list";
-import { faviconProviderFor, listFilter, listing } from "./bookmarks";
+import { displayFor, listFilter, listing } from "./bookmarks";
 
 type Apply = (sql: SqlStorage, ids: number[], now: string, names: string[]) => void;
 
@@ -47,7 +47,7 @@ const selectedIds = (selected: unknown): number[] =>
  */
 function respond(c: Context<AppEnv>, raw: Record<string, unknown>, bulk: boolean): Response {
   const signals = parsePageSignals(raw);
-  const view = listing(c.get("sql"), raw.archived === true, signals, pageParams(signals), faviconProviderFor(c));
+  const view = listing(c.get("sql"), raw.archived === true, signals, pageParams(signals), displayFor(c));
   return sse((stream) => {
     stream.patchElements(String(<ListFragments {...view} bulkBar={bulk} />));
     const patch: Record<string, unknown> = view.page === signals.page ? {} : { page: view.page };

@@ -23,6 +23,8 @@ export type Listing = PageSignals & {
   now: number;
   /** The favicon provider's URL template, or null when the Favicons preference is off. */
   faviconProvider: string | null;
+  /** Whether items offer the Snapshot button: Browser Rendering is configured. */
+  snapshotButton: boolean;
 };
 
 const SORT_LABELS: Record<ListSort, string> = {
@@ -147,10 +149,18 @@ const BulkBar: FC<Listing> = ({ archived, items }) => {
   );
 };
 
-const BookmarkList: FC<Listing & { link: LinkTo }> = ({ items, archived, link, now, faviconProvider }) => (
+const BookmarkList: FC<Listing & { link: LinkTo }> = ({ items, archived, link, now, faviconProvider, snapshotButton }) => (
   <ul id="bookmark-list">
     {items.map(({ row, tags }) => (
-      <BookmarkItem row={row} tags={tags} archived={archived} link={link} now={now} faviconProvider={faviconProvider} />
+      <BookmarkItem
+        row={row}
+        tags={tags}
+        archived={archived}
+        link={link}
+        now={now}
+        faviconProvider={faviconProvider}
+        snapshotButton={snapshotButton}
+      />
     ))}
   </ul>
 );
@@ -192,7 +202,8 @@ const BookmarkItem: FC<{
   link: LinkTo;
   now: number;
   faviconProvider: string | null;
-}> = ({ row, tags, archived, link, now, faviconProvider }) => {
+  snapshotButton: boolean;
+}> = ({ row, tags, archived, link, now, faviconProvider, snapshotButton }) => {
   const name = row.title || row.url;
   return (
     <li id={`bookmark-${row.id}`} class={row.unread ? "unread" : undefined}>
@@ -241,6 +252,11 @@ const BookmarkItem: FC<{
             Mark read
           </button>
         ) : null}
+        {snapshotButton && (
+          <button type="button" data-on:click={post(`/bookmarks/${row.id}/snapshot`)}>
+            Snapshot
+          </button>
+        )}
       </p>
     </li>
   );

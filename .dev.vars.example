@@ -1,2 +1,6 @@
 # Copy to .dev.vars for `wrangler dev`. Overrides the defaults in wrangler.jsonc.
 LD_SESSION_COOKIE_AGE=1209600
+# Browser Rendering, for Snapshots; without both the Snapshot button is hidden. Set in production with
+# `wrangler secret put`. `wrangler types` reads them from .dev.vars too, so keep the file around when regenerating.
+CF_ACCOUNT_ID=
+CF_BROWSER_TOKEN=
