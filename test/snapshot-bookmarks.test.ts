@@ -98,4 +98,23 @@ describe("Take a snapshot from the list", () => {
     const count = (await select(html, `#bookmark-${id} a`)).find((a) => a.text === "1 snapshot");
     expect(count?.attrs.href).toBe(`/bookmarks/${id}/edit#snapshots`);
   });
+
+  it("records a failed render as failure", async () => {
+    network.use(http.post(RENDER, () => HttpResponse.json({ success: false, errors: [{ message: "boom" }] }, { status: 500 })));
+
+    const html = await snapshot();
+
+    expect(html).toContain("Snapshot failed");
+    const found = await assets();
+    expect(found.count).toBe(1);
+    expect(found.results[0].status).toBe("failure");
+    expect(await dateLink(html)).toContain("https://web.archive.org/web/");
+  });
+
+  it("records an unreachable renderer as failure", async () => {
+    const html = await snapshot();
+
+    expect(html).toContain("Snapshot failed");
+    expect((await assets()).results[0].status).toBe("failure");
+  });
 });

@@ -31,6 +31,11 @@ export function failAsset(sql: SqlStorage, id: number): void {
   sql.exec("UPDATE assets SET status = 'failure' WHERE id = ?", id);
 }
 
+/** The Bookmark's Assets, newest first. */
+export function listAssets(sql: SqlStorage, bookmarkId: number): AssetRow[] {
+  return sql.exec<AssetRow>("SELECT * FROM assets WHERE bookmark_id = ? ORDER BY date_created DESC, id DESC", bookmarkId).toArray();
+}
+
 export function findAsset(sql: SqlStorage, id: number): AssetRow | null {
   return sql.exec<AssetRow>("SELECT * FROM assets WHERE id = ?", id).toArray()[0] ?? null;
 }
