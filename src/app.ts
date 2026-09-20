@@ -13,15 +13,17 @@ import { bookmarkPages } from "./ui/bookmarks";
 import { feeds } from "./ui/feeds";
 import { settings } from "./ui/settings";
 
-export type AppDeps = { sql: SqlStorage };
-export type AppEnv = { Bindings: Env; Variables: { user: User; sql: SqlStorage } };
+/** `transaction` runs `closure` atomically against `sql`, rolling its writes back when it throws. */
+export type AppDeps = { sql: SqlStorage; transaction: <T>(closure: () => T) => T };
+export type AppEnv = { Bindings: Env; Variables: { user: User } & AppDeps };
 
-export function createApp({ sql }: AppDeps): Hono<AppEnv> {
+export function createApp({ sql, transaction }: AppDeps): Hono<AppEnv> {
   // Under /api a trailing slash is ignored, so `/api/bookmarks` and `/api/bookmarks/` are one route.
   // This lives on the root app because sub-app options are dropped when route() merges their routes.
   const app = new Hono<AppEnv>({ getPath: (request) => getPath(request).replace(/^(\/api\/.+)\/$/, "$1") });
   app.use(async (c, next) => {
     c.set("sql", sql);
+    c.set("transaction", transaction);
     await next();
   });
   // Mounted before the UI middleware: every /api path ends here, so csrf and requireSession never run on it.

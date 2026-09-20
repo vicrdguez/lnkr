@@ -53,13 +53,14 @@ export function getBookmark(sql: SqlStorage, id: number): BookmarkRow | null {
   return sql.exec<BookmarkRow>("SELECT * FROM bookmarks WHERE id = ?", id).toArray()[0] ?? null;
 }
 
-export function insertBookmark(sql: SqlStorage, fields: BookmarkFields, now: string): BookmarkRow {
+/** Inserts with `date_added` `added` and `date_modified` `modified`, which defaults to `added`. */
+export function insertBookmark(sql: SqlStorage, fields: BookmarkFields, added: string, modified = added): BookmarkRow {
   const { url, title, description, notes, unread, is_archived, shared } = fields;
   return sql
     .exec<BookmarkRow>(
       `INSERT INTO bookmarks (url, title, description, notes, unread, is_archived, shared, date_added, date_modified)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
-      url, title, description, notes, +unread, +is_archived, +shared, now, now,
+      url, title, description, notes, +unread, +is_archived, +shared, added, modified,
     )
     .one();
 }
@@ -171,6 +172,11 @@ const ORDER = {
 export type ListSort = keyof typeof ORDER;
 /** Every sort name, the default `added_desc` first. */
 export const LIST_SORTS = Object.keys(ORDER) as ListSort[];
+
+/** Every bookmark, active and archived, oldest first. */
+export function allBookmarks(sql: SqlStorage): BookmarkRow[] {
+  return sql.exec<BookmarkRow>(`SELECT b.* FROM bookmarks b ORDER BY ${ORDER.added_asc}`).toArray();
+}
 
 export type ListFilter = {
   archived: boolean;
