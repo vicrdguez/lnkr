@@ -300,3 +300,11 @@ describe("Assets API", () => {
     expect((await api().get(PATH())).status).toBe(401);
   });
 });
+
+describe("Creation flag from the extension", () => {
+  it("accepts and ignores disable_html_snapshot", async () => {
+    const created = await create("https://example.com/z", "?disable_scraping&disable_html_snapshot");
+
+    expect((await assets(created)).count).toBe(0);
+  });
+});

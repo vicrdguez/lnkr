@@ -91,7 +91,10 @@ bookmarks.get("/bookmarks/check", async (c) => {
   return c.json({ bookmark: existing ? bookmarkJson(sql, existing) : null, metadata, auto_tags: [] });
 });
 
-/** Creates the bookmark, or updates the one that already has its URL; either way 201. */
+/**
+ * Creates the bookmark, or updates the one that already has its URL; either way 201. `disable_html_snapshot` in the
+ * query is accepted and ignored: Snapshots are only ever taken by hand.
+ */
 bookmarks.post("/bookmarks", async (c) => {
   const body = await jsonBody(c);
   if (!body) return parseError(c);
