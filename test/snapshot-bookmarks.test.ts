@@ -226,3 +226,77 @@ describe("View and delete snapshots", () => {
     expect((await get("/assets/1", { cookie })).status).toBe(404);
   });
 });
+
+describe("Assets API", () => {
+  const STORED = "<html>kept</html>";
+  const PATH = () => `/api/bookmarks/${id}/assets/`;
+
+  /** The background: `B` has the completed Snapshot 1 holding `STORED`. */
+  beforeEach(async () => {
+    mockRender(STORED);
+    await snapshot();
+  });
+
+  it("lists assets", async () => {
+    const response = await api(token).get(PATH());
+
+    expect(response.status).toBe(200);
+    const body = await response.json<{ count: number; results: Json[] }>();
+    expect(body.count).toBe(1);
+    const [asset] = body.results;
+    expect(Object.keys(asset)).toEqual(["id", "bookmark", "asset_type", "date_created", "content_type", "display_name", "status"]);
+    expect(asset).toMatchObject({ id: 1, bookmark: id, asset_type: "snapshot", content_type: "text/html", status: "complete" });
+    expect(asset.display_name).toMatch(/^HTML snapshot from /);
+  });
+
+  it("gets one asset", async () => {
+    const [listed] = (await assets()).results;
+
+    const response = await api(token).get(`${PATH()}1/`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(listed);
+  });
+
+  it("downloads the file as an attachment", async () => {
+    const response = await api(token).get(`${PATH()}1/download/`);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
+    expect(response.headers.get("content-disposition")).toMatch(/^attachment; filename=/);
+    expect(await response.text()).toBe(STORED);
+  });
+
+  it("deletes an asset", async () => {
+    const response = await api(token).del(`${PATH()}1/`);
+
+    expect(response.status).toBe(204);
+    expect((await assets()).count).toBe(0);
+  });
+
+  it("does not support upload", async () => {
+    const form = new FormData();
+    form.append("file", new File(["<html>up</html>"], "up.html", { type: "text/html" }));
+
+    const response = await filePost(`${PATH()}upload/`, form, { headers: { authorization: `Token ${token}` } });
+
+    expect(response.status).toBe(405);
+    expect(await response.json()).toEqual({ detail: 'Method "POST" not allowed.' });
+  });
+
+  it.each([
+    ["GET", "/api/bookmarks/999/assets/"],
+    ["GET", "/api/bookmarks/<id>/assets/999/"],
+    ["GET", "/api/bookmarks/<id>/assets/999/download/"],
+    ["DELETE", "/api/bookmarks/<id>/assets/999/"],
+  ])("answers 404 to %s %s", async (method, path) => {
+    const client = api(token);
+    const send = method === "GET" ? client.get : client.del;
+
+    expect((await send(path.replace("<id>", String(id)))).status).toBe(404);
+  });
+
+  it("needs a token", async () => {
+    expect((await api().get(PATH())).status).toBe(401);
+  });
+});
