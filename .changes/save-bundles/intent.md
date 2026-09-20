@@ -23,12 +23,12 @@ Bundles: a name, a search, and three tag lists for any, all and excluded tags, o
 - Hiding the section through a preference
 
 ## Definition of Done
-- [ ] Bundles can be created, edited, deleted and reordered from the pages, and the sidebar lists them in order with the active one marked.
-- [ ] `?bundle=<id>` narrows both list pages by the Bundle's search and tag lists, combined with `q`, sort and the unread filter; pagination and the tag sidebar reflect the narrowed result.
-- [ ] `any_tags` keeps bookmarks with at least one listed tag, `all_tags` those with every listed tag, `excluded_tags` drops those with any listed tag, and `search` applies the grammar; an empty part imposes nothing.
-- [ ] Per-item and bulk actions on a Bundle view re-render that view, and select across applies to the Bundle's result.
-- [ ] The bundles API lists, creates, reads, updates and deletes with linkding's fields; `bundle` on the bookmarks API narrows the list.
-- [ ] Unknown Bundle ids are ignored by the pages and answer 400 on the bookmarks API and 404 on the bundles API.
+- [x] Bundles can be created, edited, deleted and reordered from the pages, and the sidebar lists them in order with the active one marked.
+- [x] `?bundle=<id>` narrows both list pages by the Bundle's search and tag lists, combined with `q`, sort and the unread filter; pagination and the tag sidebar reflect the narrowed result.
+- [x] `any_tags` keeps bookmarks with at least one listed tag, `all_tags` those with every listed tag, `excluded_tags` drops those with any listed tag, and `search` applies the grammar; an empty part imposes nothing.
+- [x] Per-item and bulk actions on a Bundle view re-render that view, and select across applies to the Bundle's result.
+- [x] The bundles API lists, creates, reads, updates and deletes with linkding's fields; `bundle` on the bookmarks API narrows the list.
+- [x] Unknown Bundle ids are ignored by the pages and answer 400 on the bookmarks API and 404 on the bundles API.
 
 ## Manual verification
 - [ ] Create two Bundles, reorder them, click one in the sidebar, archive an item from that view and see the view stay on the Bundle.
