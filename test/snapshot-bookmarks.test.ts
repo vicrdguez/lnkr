@@ -198,4 +198,24 @@ describe("View and delete snapshots", () => {
     expect((await select(html, "#snapshots a")).map((a) => a.attrs.href)).toContain("/assets/1");
     expect((await select(html, "#snapshots form")).map((form) => form.attrs.action)).toEqual(["/assets/1/delete"]);
   });
+
+  it("deletes the row and the file from the edit page", async () => {
+    const response = await formPost("/assets/1/delete", {}, { cookie });
+
+    expect(response.status).toBe(302);
+    expect(location(response).href).toBe(`${BASE}/bookmarks/${id}/edit`);
+    expect((await get("/assets/1", { cookie })).status).toBe(404);
+    expect((await assets()).count).toBe(0);
+    expect(await dateLink(await page("/bookmarks"))).toContain("https://web.archive.org/web/");
+  });
+
+  it("falls back to the previous snapshot when the newest is deleted", async () => {
+    vi.setSystemTime(Date.now() + 11_000);
+    await snapshot();
+    expect(await dateLink(await page("/bookmarks"))).toBe("/assets/2");
+
+    await formPost("/assets/2/delete", {}, { cookie });
+
+    expect(await dateLink(await page("/bookmarks"))).toBe("/assets/1");
+  });
 });
