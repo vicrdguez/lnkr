@@ -209,3 +209,75 @@ describe("Bundle pages", () => {
     expect(results.map((row) => [row.name, row.order])).toEqual([["Third", 0], ["First", 1], ["Second", 2]]);
   });
 });
+
+const titles = async (html: string) => (await select(html, "#bookmark-list li a.title")).map((a) => a.text);
+const signalsOf = async (html: string) => JSON.parse((await select(html, "[data-signals]"))[0].attrs["data-signals"]);
+/** The `href` of the first link whose text is `text`, or undefined when there is none. */
+const link = async (html: string, text: string) => (await select(html, "a")).find((a) => a.text === text)?.attrs.href;
+
+describe("Sidebar and list filtering", () => {
+  beforeEach(async () => {
+    await createBundle({ name: "Py", any_tags: "python" });
+    await createBundle({ name: "Docs", search: "docs" });
+  });
+
+  it("lists bundles in order in the sidebar", async () => {
+    const html = await page("/bookmarks");
+
+    expect((await select(html, "#sidebar #bundles h2"))[0].text).toBe("Bundles");
+    const links = await select(html, "#sidebar #bundles li a");
+    expect(links.map((a) => [a.text, a.attrs.href])).toEqual([
+      ["Py", "/bookmarks?bundle=1"],
+      ["Docs", "/bookmarks?bundle=2"],
+    ]);
+  });
+
+  it("marks the active bundle and offers Clear", async () => {
+    const html = await page("/bookmarks?bundle=1&q=web");
+
+    const links = await select(html, "#sidebar #bundles li a");
+    expect(links.find((a) => a.text === "Py")?.attrs.class).toBe("active");
+    expect(links.find((a) => a.text === "Docs")?.attrs.class).toBeUndefined();
+    expect((await select(html, "#bundles a")).find((a) => a.text === "Clear")?.attrs.href).toBe("/bookmarks?q=web");
+    expect(await signalsOf(html)).toMatchObject({ bundle: "1" });
+  });
+
+  it("narrows the list", async () => {
+    expect(await titles(await page("/bookmarks?bundle=1"))).toEqual(["Django docs", "B", "A"]);
+  });
+
+  it("combines with q and the unread filter", async () => {
+    expect((await api(token).patch("/api/bookmarks/1/", { unread: true })).status).toBe(200);
+
+    // The scenario writes `q=web`; under the accepted grammar a bare term never matches a Tag, so the tag query stands in.
+    expect(await titles(await page("/bookmarks?bundle=1&q=%23web&unread=yes"))).toEqual(["A"]);
+  });
+
+  it("reflects the bundle in the tag sidebar", async () => {
+    const tags = (await select(await page("/bookmarks?bundle=1"), "#sidebar > ul li")).map((li) => li.text);
+
+    expect(tags).toEqual(["docs 1", "python 3", "web 2"]);
+  });
+
+  it("keeps the bundle on the archive", async () => {
+    expect((await api(token).post("/api/bookmarks/2/archive/")).status).toBe(204);
+
+    const html = await page("/bookmarks/archived?bundle=1");
+
+    expect(await titles(html)).toEqual(["B"]);
+    expect(await link(html, "Py")).toBe("/bookmarks/archived?bundle=1");
+  });
+
+  it("ignores an unknown bundle", async () => {
+    expect(await titles(await page("/bookmarks?bundle=999"))).toEqual(["Django docs", "C", "B", "A"]);
+  });
+
+  it("keeps the bundle in page links", async () => {
+    for (let n = 1; n <= 30; n++) {
+      const response = await api(token).post("/api/bookmarks/?disable_scraping", { url: `https://p${n}.test/`, tag_names: ["python"] });
+      expect(response.status).toBe(201);
+    }
+
+    expect(await link(await page("/bookmarks?bundle=1"), "Next")).toBe("/bookmarks?bundle=1&page=2");
+  });
+});

@@ -2,6 +2,7 @@ import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
 import { assetCountsFor } from "../db/assets";
 import { countBookmarks, type ListFilter, selectBookmarks, tagCounts, tagNamesFor } from "../db/bookmarks";
+import { bundleFilter, getBundle, listBundles } from "../db/bundles";
 import { type PageSignals, parsePageSignals } from "../lib/signals";
 import { readPrefs } from "../prefs";
 import { compileSearch, MATCH_NONE } from "../search";
@@ -10,12 +11,14 @@ import { BookmarkPage, type Listing } from "../views/bookmark_list";
 
 export const ITEMS_PER_PAGE = 30;
 
-/** The bookmarks a list page shows; as in the API, a query that does not parse finds nothing rather than failing. */
-export const listFilter = (archived: boolean, { q, unread }: PageSignals): ListFilter => ({
-  archived,
-  unread,
-  search: compileSearch(q) ?? MATCH_NONE,
-});
+/**
+ * The bookmarks a list page shows; as in the API, a query that does not parse finds nothing rather than failing. The
+ * Bundle is resolved on every render, so one that no longer exists is ignored like an unknown id.
+ */
+export const listFilter = (sql: SqlStorage, archived: boolean, { q, unread, bundle }: PageSignals): ListFilter => {
+  const row = bundle === null ? null : getBundle(sql, bundle);
+  return { archived, unread, search: compileSearch(q) ?? MATCH_NONE, bundle: row ? bundleFilter(row) ?? MATCH_NONE : undefined };
+};
 
 /** What the request decides about how items display: the favicon provider while Favicons is on, the Snapshot button while configured. */
 export type Display = Pick<Listing, "faviconProvider" | "snapshotButton">;
@@ -32,7 +35,7 @@ export function listing(
   params: URLSearchParams,
   display: Display,
 ): Listing {
-  const filter = listFilter(archived, signals);
+  const filter = listFilter(sql, archived, signals);
   const count = countBookmarks(sql, filter);
   const pages = Math.max(Math.ceil(count / ITEMS_PER_PAGE), 1);
   const page = Math.min(signals.page, pages);
@@ -49,6 +52,7 @@ export function listing(
     pages,
     items: rows.map((row) => ({ row, tags: names.get(row.id) ?? [], snapshots: snapshots.get(row.id) ?? 0 })),
     tags: tagCounts(sql, filter),
+    bundles: listBundles(sql),
     empty: count ? null : countBookmarks(sql, { archived }) ? "No bookmarks found" : "No bookmarks yet",
     now: Date.now(),
     ...display,
