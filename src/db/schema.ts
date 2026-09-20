@@ -64,6 +64,17 @@ export const migrations: string[] = [
   );
   CREATE INDEX assets_bookmark ON assets(bookmark_id, date_created);
   ALTER TABLE bookmarks ADD COLUMN latest_snapshot_id INTEGER REFERENCES assets(id);`,
+  `CREATE TABLE bundles (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    search TEXT NOT NULL DEFAULT '',
+    any_tags TEXT NOT NULL DEFAULT '',
+    all_tags TEXT NOT NULL DEFAULT '',
+    excluded_tags TEXT NOT NULL DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    date_created TEXT NOT NULL,
+    date_modified TEXT NOT NULL
+  );`,
 ];
 
 /** Applies every pending migration; safe to run again. */

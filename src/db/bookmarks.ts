@@ -194,6 +194,8 @@ export type ListFilter = {
   archived: boolean;
   unread?: boolean;
   search?: SearchFilter;
+  /** The applied Bundle, ANDed with `search`. */
+  bundle?: SearchFilter;
   modifiedSince?: string;
   addedSince?: string;
   /** Only these ids, however many. */
@@ -203,9 +205,10 @@ export type ListFilter = {
 /** The `WHERE` over the alias `b` for `filter`, shared by the list, its count and the tag sidebar so they never disagree. */
 function whereFor(filter: ListFilter): { where: string; params: (string | number)[] } {
   const search = filter.search ?? MATCH_ALL;
+  const bundle = filter.bundle ?? MATCH_ALL;
   // Absent date filters compare against "", which every ISO timestamp exceeds.
-  const conditions = ["b.is_archived = ?", search.where, "b.date_modified >= ?", "b.date_added >= ?"];
-  const params = [+filter.archived, ...search.params, filter.modifiedSince ?? "", filter.addedSince ?? ""];
+  const conditions = ["b.is_archived = ?", search.where, bundle.where, "b.date_modified >= ?", "b.date_added >= ?"];
+  const params = [+filter.archived, ...search.params, ...bundle.params, filter.modifiedSince ?? "", filter.addedSince ?? ""];
   if (filter.unread) conditions.push("b.unread = 1");
   if (filter.ids) {
     conditions.push(`b.id ${IN_IDS}`);

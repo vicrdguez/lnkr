@@ -10,6 +10,10 @@ const PARAM_BUDGET = 90;
 
 const TEXT_COLUMNS = ["title", "description", "notes", "url"];
 
+/** Whether bookmark `b` carries the tag named by the next parameter, regardless of case. */
+export const TAG_EXISTS =
+  "EXISTS (SELECT 1 FROM bookmark_tags bt JOIN tags t ON t.id = bt.tag_id WHERE bt.bookmark_id = b.id AND t.name = ? COLLATE NOCASE)";
+
 type Leaf = { kind: "term" | "tag" | "keyword"; text: string };
 type Token = Leaf | { kind: "and" | "or" | "not" | "(" | ")" };
 type Node = Leaf | { kind: "not"; operand: Node } | { kind: "and" | "or"; left: Node; right: Node };
@@ -128,7 +132,7 @@ function compile(node: Node, params: string[]): string {
       return `(${TEXT_COLUMNS.map((column) => `instr(lower(b.${column}), ?) > 0`).join(" OR ")})`;
     case "tag":
       params.push(node.text);
-      return "EXISTS (SELECT 1 FROM bookmark_tags bt JOIN tags t ON t.id = bt.tag_id WHERE bt.bookmark_id = b.id AND t.name = ? COLLATE NOCASE)";
+      return TAG_EXISTS;
     case "keyword":
       if (node.text === "unread") return "b.unread = 1";
       if (node.text === "untagged") return "NOT EXISTS (SELECT 1 FROM bookmark_tags bt WHERE bt.bookmark_id = b.id)";
