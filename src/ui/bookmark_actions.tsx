@@ -17,7 +17,7 @@ import { takeSnapshot } from "../services/snapshots";
 import { BookmarkItem, ListFragments, linkTo } from "../views/bookmark_list";
 import { displayFor, listFilter, listing } from "./bookmarks";
 
-type Apply = (sql: SqlStorage, ids: number[], now: string, names: string[]) => void;
+type Apply = (sql: SqlStorage, ids: number[], now: string, names: string[], bucket: R2Bucket) => void | Promise<void>;
 
 export type Action = "archive" | "unarchive" | "delete" | "read" | "unread" | "tag" | "untag";
 
@@ -25,7 +25,7 @@ export type Action = "archive" | "unarchive" | "delete" | "read" | "unread" | "t
 const ACTIONS: Record<Action, Apply> = {
   archive: (sql, ids, now) => bulkSetArchived(sql, ids, true, now),
   unarchive: (sql, ids, now) => bulkSetArchived(sql, ids, false, now),
-  delete: (sql, ids) => bulkDelete(sql, ids),
+  delete: (sql, ids, _now, _names, bucket) => bulkDelete(sql, bucket, ids),
   read: (sql, ids, now) => bulkSetUnread(sql, ids, false, now),
   unread: (sql, ids, now) => bulkSetUnread(sql, ids, true, now),
   tag: (sql, ids, now, names) => bulkAddTags(sql, ids, names, now),
@@ -71,7 +71,7 @@ bookmarkActions.post(`/bookmarks/:id{[0-9]+}/:action{${ITEM_ACTIONS.join("|")}}`
   const sql = c.get("sql");
   const id = Number(c.req.param("id"));
   if (!getBookmark(sql, id)) return c.notFound();
-  ACTIONS[c.req.param("action") as ItemAction](sql, [id], new Date().toISOString(), []);
+  await ACTIONS[c.req.param("action") as ItemAction](sql, [id], new Date().toISOString(), [], c.env.ASSETS_BUCKET);
   return respond(c, signals, false);
 });
 
@@ -91,7 +91,9 @@ bookmarkActions.post("/bookmarks/bulk", requireDatastar, async (c) => {
       ? listFilter(archived, parsePageSignals(signals))
       : { archived, ids: selectedIds(signals.selected) },
   );
-  if (ids.length) ACTIONS[signals.action](sql, ids, new Date().toISOString(), text(signals.bulkTags).split(/\s+/));
+  if (ids.length) {
+    await ACTIONS[signals.action](sql, ids, new Date().toISOString(), text(signals.bulkTags).split(/\s+/), c.env.ASSETS_BUCKET);
+  }
   return respond(c, signals, true);
 });
 

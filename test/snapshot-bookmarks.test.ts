@@ -218,4 +218,11 @@ describe("View and delete snapshots", () => {
 
     expect(await dateLink(await page("/bookmarks"))).toBe("/assets/1");
   });
+
+  it("removes the snapshots with their bookmark", async () => {
+    const response = await api(token).del(`/api/bookmarks/${id}/`);
+
+    expect(response.status).toBe(204);
+    expect((await get("/assets/1", { cookie })).status).toBe(404);
+  });
 });
