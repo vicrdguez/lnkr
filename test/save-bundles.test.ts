@@ -41,6 +41,44 @@ describe("Bundles API", () => {
     expect(Object.keys(body)).toEqual(BUNDLE_KEYS);
     expect(body).toMatchObject({ name: "Py", search: "", any_tags: "python", all_tags: "", excluded_tags: "", order: 0 });
   });
+
+  it("puts a new bundle last", async () => {
+    await createBundle({ name: "A" });
+    await createBundle({ name: "B" });
+
+    expect((await createBundle({ name: "Z" })).order).toBe(2);
+  });
+
+  it("requires a name", async () => {
+    const response = await api(token).post("/api/bundles/", { search: "x" });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ name: ["This field is required."] });
+  });
+
+  it("lists, gets, puts, patches and deletes", async () => {
+    await createBundle({ name: "Py", any_tags: "python" });
+
+    const list = await api(token).get("/api/bundles/");
+    expect(list.status).toBe(200);
+    expect(await list.json()).toMatchObject({ count: 1, results: [{ name: "Py" }] });
+
+    const put = await api(token).put("/api/bundles/1/", { name: "Py2" });
+    expect(put.status).toBe(200);
+    expect(await put.json()).toMatchObject({ name: "Py2", any_tags: "" });
+
+    const patch = await api(token).patch("/api/bundles/1/", { any_tags: "python" });
+    expect(patch.status).toBe(200);
+    expect(await patch.json()).toMatchObject({ name: "Py2", any_tags: "python" });
+
+    expect((await api(token).get("/api/bundles/1/")).status).toBe(200);
+    expect((await api(token).del("/api/bundles/1/")).status).toBe(204);
+    expect((await api(token).get("/api/bundles/1/")).status).toBe(404);
+  });
+
+  it("needs a token", async () => {
+    expect((await api().get("/api/bundles/")).status).toBe(401);
+  });
 });
 
 /** The hosts of the bookmarks the API lists for `path`, in order. */
