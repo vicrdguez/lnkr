@@ -6,7 +6,8 @@ export { Directory } from "./directory";
 export { Tenant } from "./tenant";
 
 /**
- * The only place that decides which Tenant object serves a request (ADR 0001): the one named by the tenant key in the
+ * Decides which Tenant object serves a request (ADR 0001), except POST `/login`, which `fetch` routes by username
+ * through the Directory: the one named by the tenant key in the
  * first well-formed credential among the `Authorization: Token` header, the feed token path and the session cookie.
  * Null means the request carries none and the Directory serves it.
  */

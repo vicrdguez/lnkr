@@ -1,9 +1,10 @@
 import { runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { newTenantKey } from "../src/auth/credential";
 import { hashPassword } from "../src/auth/password";
 import { directoryMigrations, insertUser, runDirectoryMigrations } from "../src/db/directory";
+import { Tenant } from "../src/tenant";
 import {
   api,
   apiToken,
@@ -60,6 +61,22 @@ describe("Setup on a fresh Instance", () => {
       state.storage.sql.exec("SELECT username, tenant_key, is_superuser FROM users").toArray(),
     );
     expect(users).toEqual([{ username: USERNAME, tenant_key: key, is_superuser: 1 }]);
+  });
+
+  it("rolls the Directory user back when provisioning fails", async () => {
+    vi.spyOn(Tenant.prototype, "provision").mockImplementationOnce(() => {
+      throw new Error("provision failed");
+    });
+
+    const response = await formPost("/setup", { username: USERNAME, password: PASSWORD });
+
+    expect(response.status).toBe(500);
+    expect(setCookieOf(response)).toBeUndefined();
+    const count = await runInDurableObject(directory(), (_directory, state) =>
+      state.storage.sql.exec<{ n: number }>("SELECT count(*) AS n FROM users").one().n,
+    );
+    expect(count).toBe(0);
+    expect((await get("/setup")).status).toBe(200);
   });
 
   it("closes after the first user", async () => {

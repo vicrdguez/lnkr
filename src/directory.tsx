@@ -5,6 +5,7 @@ import { health } from "./app";
 import { formatCredential, newTenantKey } from "./auth/credential";
 import { hashPassword } from "./auth/password";
 import { setSessionCookie } from "./auth/session";
+import { MISSING_CREDENTIALS } from "./auth/token";
 import { countUsers, deleteUser, findUser, insertUser, runDirectoryMigrations } from "./db/directory";
 import { formFields } from "./ui/form";
 import { INVALID_CREDENTIALS, LoginForm, SetupForm } from "./views/auth";
@@ -43,7 +44,7 @@ export class Directory extends DurableObject<Env> {
 export function createDirectoryApp({ sql, env }: { sql: SqlStorage; env: Env }): Hono<{ Bindings: Env }> {
   const app = new Hono<{ Bindings: Env }>();
   // Without a token an API client gets linkding's 401 and a feed 404, as the Tenant answers them, not a login page.
-  app.all("/api/*", (c) => c.json({ detail: "Authentication credentials were not provided." }, 401));
+  app.all("/api/*", (c) => c.json(MISSING_CREDENTIALS, 401));
   app.all("/feeds/*", (c) => c.notFound());
   app.use(csrf());
 

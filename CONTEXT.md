@@ -52,7 +52,7 @@ The state of a Bookmark taken out of the active list but kept, searchable, in th
 _Avoid_: hidden, closed, done
 
 **Shared**:
-The flag marking a Bookmark as visible to other Tenants of the same Instance. It has no effect while an Instance has one Tenant and exists so the API stays compatible.
+The flag marking a Bookmark as visible to other Tenants of the same Instance. Nothing reads it across Tenants yet; it exists so the API stays compatible.
 _Avoid_: public, published
 
 **Delete**:
@@ -86,7 +86,7 @@ _Avoid_: wayback, archive link
 
 ## Flagged ambiguities
 
-- **Instance vs Tenant.** "A single instance for a single user" was used to mean both. Resolution: Instance is the deployment, Tenant is the user's data. In the first version one Instance holds one Tenant, and that Tenant is the only thing the Instance stores.
+- **Instance vs Tenant.** "A single instance for a single user" was used to mean both. Resolution: Instance is the deployment, Tenant is the user's data. An Instance holds its Tenants and the Directory that finds them.
 - **Archive.** Linkding uses "archive" for the Archived state, for Wayback links and for page copies. Resolution: Archived is the Bookmark state only; page copies are Snapshots; Internet Archive links are Web Archive links.
 - **Remove vs Delete.** Linkding's UI says "Remove", its API says DELETE. Resolution: Delete everywhere.
 
@@ -106,4 +106,4 @@ _Avoid_: wayback, archive link
 
 **Dev:** If a second person joins the Instance later, do they see my Bookmarks?
 
-**Expert:** Not unless a Bookmark is Shared, and sharing only comes with multi-Tenant support. Each Tenant's data is separate.
+**Expert:** No. Each Tenant's data is separate; only Shared Bookmarks will be visible to others, once sharing exists.

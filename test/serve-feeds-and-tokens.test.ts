@@ -193,6 +193,10 @@ describe("RSS feeds", () => {
     expect((await get(path)).status).toBe(404);
   });
 
+  it("answers 404 for an unknown token carrying this Tenant's key", async () => {
+    expect((await get(`/feeds/${tenantKeyOf(cookie)}.${"0".repeat(40)}/all`)).status).toBe(404);
+  });
+
   it.each<[string, number]>([
     ["all", 200],
     ["unread", 200],

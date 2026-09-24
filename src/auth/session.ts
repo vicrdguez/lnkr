@@ -28,8 +28,8 @@ export const requireSession: MiddlewareHandler<AppEnv> = async (c, next) => {
   await next();
 };
 
-/** The session lifetime in seconds. */
 // DEBT(#23/W4): a negative value passes through (dead session, no Max-Age); above 34560000 setCookie throws and login answers 500.
+/** The session lifetime in seconds. */
 const sessionMaxAge = (env: Env): number => Number(env.LD_SESSION_COOKIE_AGE) || DEFAULT_COOKIE_AGE;
 
 /** Writes a session row for `userId` and returns its bare id. */

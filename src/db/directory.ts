@@ -1,3 +1,5 @@
+import { runMigrations } from "./schema";
+
 /** Directory schema migrations in order; version equals array index plus one. */
 export const directoryMigrations: string[] = [
   `CREATE TABLE users (
@@ -35,16 +37,7 @@ const toDirectoryUser = (row: DirectoryUserRow): DirectoryUser => ({
 
 /** Applies every pending Directory migration; safe to run again. */
 export function runDirectoryMigrations(sql: SqlStorage): void {
-  sql.exec("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)");
-  const applied = new Set(
-    sql.exec<{ version: number }>("SELECT version FROM schema_migrations").toArray().map((row) => row.version),
-  );
-  directoryMigrations.forEach((statements, index) => {
-    const version = index + 1;
-    if (applied.has(version)) return;
-    sql.exec(statements);
-    sql.exec("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)", version, new Date().toISOString());
-  });
+  runMigrations(sql, directoryMigrations);
 }
 
 export function countUsers(sql: SqlStorage): number {

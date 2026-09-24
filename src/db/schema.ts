@@ -77,15 +77,15 @@ export const migrations: string[] = [
   );`,
 ];
 
-/** Applies every pending migration; safe to run again. */
-export function runMigrations(sql: SqlStorage): void {
+/** Applies every pending migration of `list`, the Tenant's by default; safe to run again. */
+export function runMigrations(sql: SqlStorage, list: string[] = migrations): void {
   sql.exec(
     "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)",
   );
   const applied = new Set(
     sql.exec<{ version: number }>("SELECT version FROM schema_migrations").toArray().map((row) => row.version),
   );
-  migrations.forEach((statements, index) => {
+  list.forEach((statements, index) => {
     const version = index + 1;
     if (applied.has(version)) return;
     sql.exec(statements);
