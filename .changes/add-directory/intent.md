@@ -27,15 +27,15 @@ A second Durable Object class, `Directory`, with one instance named `main`, hold
 - Moving data between Tenants or renaming a Tenant key
 
 ## Definition of Done
-- [ ] On a fresh Instance, `/setup` creates a superuser in the Directory, provisions a Tenant with a random key, starts a session with a prefixed cookie and redirects to `/`; afterwards `/setup` redirects to `/login`.
-- [ ] An Instance whose `main` Tenant was set up before this slice keeps working: its username is registered as superuser on the Directory's first request, its bare session cookies and bare API tokens still reach `main`, and login for that username works.
-- [ ] POST `/login` for a known username reaches that user's Tenant, which applies its password check and limiter and sets a cookie prefixed with the tenant key.
-- [ ] POST `/login` for an unknown username answers 401 with the login form and sets no cookie.
-- [ ] Requests carrying a prefixed cookie, token or feed token are served by the Tenant named by the prefix without any Directory call.
-- [ ] Requests with no credential are served by the Directory: GET `/login`, `/setup`, `/health` and `/` work, and any other path redirects to `/login`.
-- [ ] A forged prefix pointing at a Tenant that was never provisioned answers 404 on every path.
-- [ ] Two users on one Instance never see each other's bookmarks.
-- [ ] The settings page shows the API token with the tenant key prefix and the extension works with it.
+- [x] On a fresh Instance, `/setup` creates a superuser in the Directory, provisions a Tenant with a random key, starts a session with a prefixed cookie and redirects to `/`; afterwards `/setup` redirects to `/login`.
+- [x] An Instance whose `main` Tenant was set up before this slice keeps working: its username is registered as superuser on the Directory's first request, its bare session cookies and bare API tokens still reach `main`, and login for that username works.
+- [x] POST `/login` for a known username reaches that user's Tenant, which applies its password check and limiter and sets a cookie prefixed with the tenant key.
+- [x] POST `/login` for an unknown username answers 401 with the login form and sets no cookie.
+- [x] Requests carrying a prefixed cookie, token or feed token are served by the Tenant named by the prefix without any Directory call.
+- [x] Requests with no credential are served by the Directory: GET `/login`, `/setup`, `/health` and `/` work, and any other path redirects to `/login`.
+- [x] A forged prefix pointing at a Tenant that was never provisioned answers 404 on every path.
+- [x] Two users on one Instance never see each other's bookmarks.
+- [x] The settings page shows the API token with the tenant key prefix and the extension works with it.
 
 ## Manual verification
 - [ ] Deploy over an existing Instance; the existing browser session and the extension token keep working without re-login.
