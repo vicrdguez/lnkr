@@ -60,6 +60,12 @@ describe("OpenSearch", () => {
     expect(body).toContain("<ShortName>lnkr</ShortName>");
     expect(body).toContain(`<Url type="text/html" template="${BASE}/bookmarks?q={searchTerms}"/>`);
   });
+
+  it("follows the origin the request arrived at", async () => {
+    const body = await (await get("/opensearch.xml", { base: "https://other.test" })).text();
+
+    expect(body).toContain('<Url type="text/html" template="https://other.test/bookmarks?q={searchTerms}"/>');
+  });
 });
 
 describe("Head links", () => {
@@ -82,6 +88,8 @@ describe("Shared text as URL", () => {
 
     expect(await inputValue(query, "url")).toBe("https://example.com/shared");
     expect(await inputValue(query, "title")).toBe("Shared");
+    const [description] = await select(await page(`/bookmarks/new?${query}`), 'main form textarea[name="description"]');
+    expect(description.text).toBe("");
   });
 
   it("ignores text that is not a URL", async () => {

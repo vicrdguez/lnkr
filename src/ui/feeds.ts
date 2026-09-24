@@ -13,7 +13,7 @@ export type FeedKind = keyof typeof KINDS;
 const REFERENCES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
 const UNSAFE = /[&<>"\x00-\x08\x0B\x0C\x0E-\x1F]/g;
 
-const xmlEscape = (text: string): string => text.replace(UNSAFE, (character) => REFERENCES[character] ?? "");
+export const xmlEscape = (text: string): string => text.replace(UNSAFE, (character) => REFERENCES[character] ?? "");
 
 /** `<name>` holding `text`, escaped. */
 const element = (name: string, text: string): string => `<${name}>${xmlEscape(text)}</${name}>`;

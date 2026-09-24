@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../app";
 import { THEME_COLOR } from "../views/layout";
+import { xmlEscape } from "./feeds";
 
-const CACHE = { "cache-control": "max-age=86400" };
+const CACHE_A_DAY = { "cache-control": "max-age=86400" };
 
 const MANIFEST = JSON.stringify({
   name: "lnkr",
@@ -19,14 +20,14 @@ const MANIFEST = JSON.stringify({
 /** The web app manifest and the OpenSearch description, public constants a browser fetches without a session. */
 export const meta = new Hono<AppEnv>();
 
-meta.get("/manifest.json", (c) => c.body(MANIFEST, 200, { "content-type": "application/manifest+json", ...CACHE }));
+meta.get("/manifest.json", (c) => c.body(MANIFEST, 200, { "content-type": "application/manifest+json", ...CACHE_A_DAY }));
 
 meta.get("/opensearch.xml", (c) => {
-  const origin = new URL(c.req.url).origin;
+  const origin = xmlEscape(new URL(c.req.url).origin);
   const xml =
     '<?xml version="1.0" encoding="UTF-8"?><OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">' +
     "<ShortName>lnkr</ShortName><Description>Search lnkr bookmarks</Description><InputEncoding>UTF-8</InputEncoding>" +
     `<Image width="16" height="16" type="image/svg+xml">${origin}/static/icon.svg</Image>` +
     `<Url type="text/html" template="${origin}/bookmarks?q={searchTerms}"/></OpenSearchDescription>`;
-  return c.body(xml, 200, { "content-type": "application/opensearchdescription+xml; charset=utf-8", ...CACHE });
+  return c.body(xml, 200, { "content-type": "application/opensearchdescription+xml; charset=utf-8", ...CACHE_A_DAY });
 });
