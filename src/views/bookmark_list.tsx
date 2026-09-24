@@ -5,6 +5,7 @@ import type { User } from "../db/users";
 import { absoluteDate, archiveTimestamp, relativeDate } from "../lib/dates";
 import { pageUrl, tagsIn, withoutTag, withTag } from "../lib/query";
 import type { PageSignals } from "../lib/signals";
+import type { Prefs } from "../prefs";
 import { faviconUrl } from "../services/favicons";
 import type { Action, ItemAction } from "../ui/bookmark_actions";
 import { current, Layout } from "./layout";
@@ -24,6 +25,7 @@ export type Listing = PageSignals & {
   /** The message shown instead of items when there are none. */
   empty: string | null;
   now: number;
+  prefs: Prefs;
   /** The favicon provider's URL template, or null when the Favicons preference is off. */
   faviconProvider: string | null;
   /** Whether items offer the Snapshot button: Browser Rendering is configured. */
@@ -59,8 +61,10 @@ const pageSignals = ({ q, sort, unread, page, bundle, archived }: Listing): stri
   });
 
 export const BookmarkPage: FC<{ user: User } & Listing> = ({ user, ...listing }) => {
-  const { archived, q, sort, unread, bundle, empty } = listing;
+  const { archived, q, sort, unread, bundle, empty, prefs } = listing;
   const link = linkTo(listing);
+  // With Unread saved as the default, turning the filter off takes an explicit empty value.
+  const unreadOff = prefs.search_preferences.unread === "yes" ? "" : null;
   return (
     <Layout title={archived ? "Archived bookmarks" : "Bookmarks"} user={user} section={archived ? "archived" : "bookmarks"}>
       <SearchForm path={pathOf(archived)} q={q} sort={sort} unread={unread} bundle={bundle} link={link} />
@@ -70,7 +74,7 @@ export const BookmarkPage: FC<{ user: User } & Listing> = ({ user, ...listing })
             {SORT_LABELS[value]}
           </a>
         ))}
-        <a href={link({ unread: unread ? null : "yes" })} {...current(unread, "true")}>
+        <a href={link({ unread: unread ? unreadOff : "yes" })} {...current(unread, "true")}>
           Unread
         </a>
       </p>
@@ -81,6 +85,11 @@ export const BookmarkPage: FC<{ user: User } & Listing> = ({ user, ...listing })
           <BookmarkList {...listing} link={link} />
           <Pagination {...listing} link={link} />
         </section>
+        {prefs.collapse_side_panel && (
+          <a class="sidebar-toggle" href="#sidebar">
+            Show tags
+          </a>
+        )}
         <Sidebar {...listing} link={link} />
       </div>
     </Layout>
@@ -100,7 +109,10 @@ export const ListFragments: FC<Listing & { bulkBar: boolean }> = ({ bulkBar, ...
   );
 };
 
-/** Submits `q` by GET to the page, keeping a non-default sort, the unread filter and the Bundle as hidden inputs. */
+/**
+ * Submits `q` by GET to the page with the current sort and Unread filter as explicit hidden inputs, so saved
+ * defaults never override them, and the Bundle while one is applied; Save posts the sort and filter as the new defaults.
+ */
 const SearchForm: FC<Pick<Listing, "q" | "sort" | "unread" | "bundle"> & { path: string; link: LinkTo }> = ({
   path,
   q,
@@ -111,10 +123,13 @@ const SearchForm: FC<Pick<Listing, "q" | "sort" | "unread" | "bundle"> & { path:
 }) => (
   <form class="search" method="get" action={path}>
     <input type="search" name="q" value={q} placeholder="Search" aria-label="Search" />
-    {sort !== "added_desc" && <input type="hidden" name="sort" value={sort} />}
-    {unread && <input type="hidden" name="unread" value="yes" />}
+    <input type="hidden" name="sort" value={sort} />
+    <input type="hidden" name="unread" value={unread ? "yes" : ""} />
     {bundle !== null && <input type="hidden" name="bundle" value={String(bundle)} />}
     <button>Search</button>
+    <button formmethod="post" formaction="/bookmarks/search-preferences" aria-label="Save sort and filter as default">
+      Save
+    </button>
     <a href={link({ q: null })}>Clear</a>
   </form>
 );
@@ -166,8 +181,12 @@ const BulkBar: FC<Listing> = ({ archived, items }) => {
   );
 };
 
-const BookmarkList: FC<Listing & { link: LinkTo }> = ({ items, archived, link, now, faviconProvider, snapshotButton }) => (
-  <ul id="bookmark-list">
+const BookmarkList: FC<Listing & { link: LinkTo }> = ({ items, archived, link, now, prefs, faviconProvider, snapshotButton }) => (
+  <ul
+    id="bookmark-list"
+    class={`description-${prefs.bookmark_description_display}`}
+    style={`--ld-bookmark-description-max-lines: ${prefs.bookmark_description_max_lines}`}
+  >
     {items.map(({ row, tags, snapshots }) => (
       <BookmarkItem
         row={row}
@@ -176,6 +195,7 @@ const BookmarkList: FC<Listing & { link: LinkTo }> = ({ items, archived, link, n
         archived={archived}
         link={link}
         now={now}
+        prefs={prefs}
         faviconProvider={faviconProvider}
         snapshotButton={snapshotButton}
       />
@@ -193,15 +213,29 @@ const Pagination: FC<{ page: number; pages: number; link: LinkTo }> = ({ page, p
   </nav>
 );
 
+/** The heading a tag groups under alphabetically: its upper-cased first letter, or `#` for anything else. */
+const letterOf = (name: string): string => {
+  const first = [...name][0] ?? "";
+  return /\p{L}/u.test(first) ? first.toUpperCase() : "#";
+};
+
 /** The Bundles section while there is a Bundle, the applied one marked and clearable, then the tags of the whole result. */
-const Sidebar: FC<Pick<Listing, "tags" | "q" | "bundles" | "bundle"> & { link: LinkTo }> = ({
+const Sidebar: FC<Pick<Listing, "tags" | "q" | "bundles" | "bundle" | "prefs"> & { link: LinkTo }> = ({
   tags,
   q,
   bundles,
   bundle,
   link,
+  prefs,
 }) => {
   const selected = new Set(tagsIn(q));
+  const groups = new Map<string, Listing["tags"]>();
+  for (const tag of tags) {
+    const key = prefs.tag_grouping === "alphabetical" ? letterOf(tag.name) : "";
+    const group = groups.get(key);
+    if (group) group.push(tag);
+    else groups.set(key, [tag]);
+  }
   return (
     <aside id="sidebar">
       {bundles.length > 0 && (
@@ -224,17 +258,22 @@ const Sidebar: FC<Pick<Listing, "tags" | "q" | "bundles" | "bundle"> & { link: L
         </section>
       )}
       <h2>Tags</h2>
-      <ul>
-        {tags.map(({ name, count }) => {
-          const on = selected.has(name.toLowerCase());
-          return (
-            <li class={on ? "selected" : undefined} aria-current={on ? "true" : undefined}>
-              <a href={link({ q: on ? withoutTag(q, name) || null : withTag(q, name) })}>{name}</a>{" "}
-              <span class="count">{count}</span>
-            </li>
-          );
-        })}
-      </ul>
+      {[...groups].map(([letter, group]) => (
+        <>
+          {letter && <h4>{letter}</h4>}
+          <ul>
+            {group.map(({ name, count }) => {
+              const on = selected.has(name.toLowerCase());
+              return (
+                <li class={on ? "selected" : undefined} aria-current={on ? "true" : undefined}>
+                  <a href={link({ q: on ? withoutTag(q, name) || null : withTag(q, name) })}>{name}</a>{" "}
+                  <span class="count">{count}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      ))}
     </aside>
   );
 };
@@ -248,30 +287,50 @@ export const BookmarkItem: FC<{
   archived: boolean;
   link: LinkTo;
   now: number;
+  prefs: Prefs;
   faviconProvider: string | null;
   snapshotButton: boolean;
   message?: string;
-}> = ({ row, tags, snapshots, archived, link, now, faviconProvider, snapshotButton, message }) => {
+}> = ({ row, tags, snapshots, archived, link, now, prefs, faviconProvider, snapshotButton, message }) => {
   const name = row.title || row.url;
+  const description = row.description && <span class="description">{row.description}</span>;
+  const tagLinks = tags.length > 0 && (
+    <span class="tags">
+      {tags.map((name) => (
+        <a class="tag" href={link({ q: `#${name}` })}>
+          #{name}
+        </a>
+      ))}
+    </span>
+  );
+  const dateDisplay = prefs.bookmark_date_display;
   return (
     <li id={`bookmark-${row.id}`} class={row.unread ? "unread" : undefined}>
       <input type="checkbox" aria-label={`Select ${name}`} {...{ [`data-bind:selected.b${row.id}`]: "" }} />{" "}
       <Favicon src={faviconProvider && faviconUrl(faviconProvider, row.url)} />
-      <a class="title" href={row.url} target="_blank" rel="noopener">
+      <a
+        class="title"
+        href={row.url}
+        target={prefs.bookmark_link_target}
+        rel={prefs.bookmark_link_target === "_blank" ? "noopener" : undefined}
+      >
         {name}
       </a>
-      {row.description && <p class="description">{row.description}</p>}
-      {tags.length > 0 && (
-        <p class="tags">
-          {tags.map((name) => (
-            <a class="tag" href={link({ q: `#${name}` })}>
-              #{name}
-            </a>
-          ))}
-        </p>
+      {prefs.display_url && <span class="url">{row.url}</span>}
+      {prefs.bookmark_description_display === "inline" ? (
+        (description || tagLinks) && (
+          <p class="content">
+            {description} {tagLinks}
+          </p>
+        )
+      ) : (
+        <>
+          {description && <p>{description}</p>}
+          {tagLinks && <p>{tagLinks}</p>}
+        </>
       )}
       {row.notes && (
-        <details class="notes">
+        <details class="notes" open={prefs.permanent_notes}>
           <summary>Notes</summary>
           <pre>{row.notes}</pre>
         </details>
@@ -282,33 +341,41 @@ export const BookmarkItem: FC<{
         </p>
       )}
       <p class="actions">
-        <a
-          class="date"
-          href={
-            row.latest_snapshot_id
-              ? `/assets/${row.latest_snapshot_id}`
-              : `https://web.archive.org/web/${archiveTimestamp(row.date_added)}/${row.url}`
-          }
-          title={absoluteDate(row.date_added)}
-          target="_blank"
-          rel="noopener"
-        >
-          {relativeDate(row.date_added, now)}
-        </a>{" "}
+        {dateDisplay !== "hidden" && (
+          <a
+            class="date"
+            href={
+              row.latest_snapshot_id
+                ? `/assets/${row.latest_snapshot_id}`
+                : `https://web.archive.org/web/${archiveTimestamp(row.date_added)}/${row.url}`
+            }
+            title={absoluteDate(row.date_added)}
+            target="_blank"
+            rel="noopener"
+          >
+            {dateDisplay === "absolute" ? absoluteDate(row.date_added).slice(0, 10) : relativeDate(row.date_added, now)}
+          </a>
+        )}{" "}
         {snapshots > 0 && (
           <a class="snapshots" href={`/bookmarks/${row.id}/edit#snapshots`}>
             {`${snapshots} snapshot${snapshots === 1 ? "" : "s"}`}
           </a>
         )}{" "}
-        <a class="edit" href={`/bookmarks/${row.id}/edit`} aria-label={`Edit ${name}`}>
-          Edit
-        </a>
-        <button type="button" data-on:click={itemAction(row.id, archived ? "unarchive" : "archive")}>
-          {archived ? "Unarchive" : "Archive"}
-        </button>
-        <button type="button" data-on:click={`confirm('Delete this bookmark?') && ${itemAction(row.id, "delete")}`}>
-          Delete
-        </button>
+        {prefs.display_edit_bookmark_action && (
+          <a class="edit" href={`/bookmarks/${row.id}/edit`} aria-label={`Edit ${name}`}>
+            Edit
+          </a>
+        )}
+        {prefs.display_archive_bookmark_action && (
+          <button type="button" data-on:click={itemAction(row.id, archived ? "unarchive" : "archive")}>
+            {archived ? "Unarchive" : "Archive"}
+          </button>
+        )}
+        {prefs.display_remove_bookmark_action && (
+          <button type="button" data-on:click={`confirm('Delete this bookmark?') && ${itemAction(row.id, "delete")}`}>
+            Delete
+          </button>
+        )}
         {row.unread ? (
           <button type="button" data-on:click={itemAction(row.id, "read")}>
             Mark read

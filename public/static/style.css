@@ -1,6 +1,11 @@
-:root { color-scheme: light dark; font-family: system-ui, sans-serif; }
-/* DEBT(#27/manual): color-scheme is declared only here, so in dark mode every navigation paints white until this file loads; put <meta name="color-scheme" content="light dark"> in the layout and close-page heads. */
-body { max-width: 64rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+/* Palettes: light by default, dark when the Theme preference says so or, for auto, when the system does. */
+:root { color-scheme: light; --bg: #fff; --fg: #1a1a1a; --border: #ddd; --error: #b00020; font-family: system-ui, sans-serif; }
+:root[data-theme="dark"] { color-scheme: dark; --bg: #1b1b1f; --fg: #e4e4e7; --border: #444; --error: #ff6b6b; }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] { color-scheme: dark; --bg: #1b1b1f; --fg: #e4e4e7; --border: #444; --error: #ff6b6b; }
+}
+/* DEBT(#27/manual): color-scheme is declared only here, so in dark mode every navigation paints white until this file loads; put a <meta name="color-scheme"> derived from the Theme preference (light, dark, or "light dark" for auto) in the layout and close-page heads. */
+body { max-width: 64rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; background: var(--bg); color: var(--fg); }
 nav { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-bottom: 2rem; }
 nav form { display: inline; }
 label { display: block; margin-top: 1rem; }
@@ -8,7 +13,7 @@ input { display: block; width: 100%; padding: 0.4rem; margin-top: 0.25rem; }
 button { margin-top: 1rem; padding: 0.4rem 1rem; }
 main > form:not(.search) { max-width: 40rem; }
 .active { font-weight: bold; }
-.error { color: light-dark(#b00020, #ff6b6b); }
+.error { color: var(--error); }
 textarea { display: block; width: 100%; padding: 0.4rem; margin-top: 0.25rem; font: inherit; }
 label.checkbox input { display: inline; width: auto; }
 .hint { margin-top: 0.25rem; font-size: 0.875rem; }
@@ -27,14 +32,26 @@ form.search input[type="search"] { flex: 1; }
 .listing { display: grid; gap: 2rem; }
 @media (min-width: 48rem) { .listing { grid-template-columns: minmax(0, 1fr) 14rem; } }
 #bookmark-list { list-style: none; padding: 0; margin: 0; }
-#bookmark-list li { padding: 0.75rem 0; border-bottom: 1px solid light-dark(#ddd, #444); overflow-wrap: anywhere; }
+#bookmark-list li { padding: 0.75rem 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
 #bookmark-list li.unread .title { font-weight: bold; }
 .favicon { vertical-align: middle; margin-right: 0.35rem; }
 #bookmark-list p { margin: 0.25rem 0; }
-.tags { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.tags .tag { margin-right: 0.5rem; }
+.url { display: block; font-size: 0.875rem; opacity: 0.75; }
+/* Description display: clamped to the preference's line count, inline with the tags or on its own line. */
+.description-inline .content, .description-separate .description {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--ld-bookmark-description-max-lines, 1); overflow: hidden;
+}
 .notes pre { white-space: pre-wrap; margin: 0.25rem 0; font: inherit; }
 .date { font-size: 0.875rem; opacity: 0.75; }
 .pagination { display: flex; gap: 1rem; margin-top: 1rem; }
+.sticky-pagination .pagination { position: sticky; bottom: 0; padding: 0.5rem 0; background: var(--bg); }
+/* A collapsed side panel opens through its toggle link's #sidebar target, no script needed. */
+.sidebar-toggle { display: none; }
+.side-panel-collapsed .listing { grid-template-columns: minmax(0, 1fr); }
+.side-panel-collapsed .sidebar-toggle { display: inline; }
+.side-panel-collapsed #sidebar:not(:target) { display: none; }
+#sidebar h4 { margin: 0.75rem 0 0.25rem; }
 #sidebar h2 { font-size: 1rem; margin: 0 0 0.5rem; }
 #sidebar ul { list-style: none; padding: 0; margin: 0; }
 #sidebar .selected { font-weight: bold; }
