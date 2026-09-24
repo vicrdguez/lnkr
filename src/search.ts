@@ -6,9 +6,13 @@ export const MATCH_ALL: SearchFilter = { where: "1 = 1", params: [] };
 export const MATCH_NONE: SearchFilter = { where: "0 = 1", params: [] };
 
 /** Durable Object SQLite binds at most one hundred parameters; the list query needs a few of its own. */
-const PARAM_BUDGET = 90;
+export const PARAM_BUDGET = 90;
 
 const TEXT_COLUMNS = ["title", "description", "notes", "url"];
+
+/** Whether bookmark `b` carries the tag named by the next parameter, regardless of case. */
+export const TAG_EXISTS =
+  "EXISTS (SELECT 1 FROM bookmark_tags bt JOIN tags t ON t.id = bt.tag_id WHERE bt.bookmark_id = b.id AND t.name = ? COLLATE NOCASE)";
 
 type Leaf = { kind: "term" | "tag" | "keyword"; text: string };
 type Token = Leaf | { kind: "and" | "or" | "not" | "(" | ")" };
@@ -120,9 +124,6 @@ function parse(tokens: Token[]): Node {
   return root;
 }
 
-const HAS_TAG =
-  "EXISTS (SELECT 1 FROM bookmark_tags bt JOIN tags t ON t.id = bt.tag_id WHERE bt.bookmark_id = b.id AND t.name = ? COLLATE NOCASE)";
-
 function compile(node: Node, params: string[], laxTags: boolean): string {
   switch (node.kind) {
     case "term": {
@@ -132,13 +133,13 @@ function compile(node: Node, params: string[], laxTags: boolean): string {
       const clauses = TEXT_COLUMNS.map((column) => `instr(lower(b.${column}), ?) > 0`);
       if (laxTags) {
         params.push(node.text);
-        clauses.push(HAS_TAG);
+        clauses.push(TAG_EXISTS);
       }
       return `(${clauses.join(" OR ")})`;
     }
     case "tag":
       params.push(node.text);
-      return HAS_TAG;
+      return TAG_EXISTS;
     case "keyword":
       if (node.text === "unread") return "b.unread = 1";
       if (node.text === "untagged") return "NOT EXISTS (SELECT 1 FROM bookmark_tags bt WHERE bt.bookmark_id = b.id)";

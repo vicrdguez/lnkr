@@ -2,6 +2,7 @@ import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
 import { assetCountsFor } from "../db/assets";
 import { countBookmarks, type ListFilter, selectBookmarks, tagCounts, tagNamesFor } from "../db/bookmarks";
+import { bundleFilter, getBundle, listBundles } from "../db/bundles";
 import { type ListDefaults, type PageSignals, parsePageSignals } from "../lib/signals";
 import { type Prefs, parseSearchPreferences, readPrefs, writePrefs } from "../prefs";
 import { compileSearch, MATCH_NONE } from "../search";
@@ -9,12 +10,20 @@ import { snapshotsConfigured } from "../services/snapshots";
 import { BookmarkPage, type Listing } from "../views/bookmark_list";
 import { formFields } from "./form";
 
-/** The bookmarks a list page shows; as in the API, a query that does not parse finds nothing rather than failing. */
-export const listFilter = (archived: boolean, { q, unread }: PageSignals, prefs: Prefs): ListFilter => ({
-  archived,
-  unread,
-  search: compileSearch(q, { laxTags: prefs.tag_search === "lax" }) ?? MATCH_NONE,
-});
+/**
+ * The bookmarks a list page shows; as in the API, a query that does not parse finds nothing rather than failing. The
+ * Bundle is resolved on every render, so one that no longer exists is ignored like an unknown id.
+ */
+export const listFilter = (
+  sql: SqlStorage,
+  archived: boolean,
+  { q, unread, bundle }: PageSignals,
+  prefs: Prefs,
+): ListFilter => {
+  const row = bundle === null ? null : getBundle(sql, bundle);
+  const search = compileSearch(q, { laxTags: prefs.tag_search === "lax" }) ?? MATCH_NONE;
+  return { archived, unread, search, bundle: row ? bundleFilter(row) ?? MATCH_NONE : undefined };
+};
 
 /** The saved search preferences as the list pages read them. */
 export const listDefaults = ({ search_preferences: { sort, unread } }: Prefs): ListDefaults => ({ sort, unread: unread === "yes" });
@@ -41,7 +50,13 @@ export function listing(
   params: URLSearchParams,
   display: Display,
 ): Listing {
-  const filter = listFilter(archived, signals, display.prefs);
+  const filter = listFilter(sql, archived, signals, display.prefs);
+  if (signals.bundle !== null && !filter.bundle) {
+    // An unknown Bundle is ignored: the page reads as if the parameter were absent.
+    signals = { ...signals, bundle: null };
+    params = new URLSearchParams(params);
+    params.delete("bundle");
+  }
   const count = countBookmarks(sql, filter);
   const perPage = display.prefs.items_per_page;
   const pages = Math.max(Math.ceil(count / perPage), 1);
@@ -59,6 +74,7 @@ export function listing(
     pages,
     items: rows.map((row) => ({ row, tags: names.get(row.id) ?? [], snapshots: snapshots.get(row.id) ?? 0 })),
     tags: tagCounts(sql, filter),
+    bundles: listBundles(sql),
     empty: count ? null : countBookmarks(sql, { archived }) ? "No bookmarks found" : "No bookmarks yet",
     now: Date.now(),
     ...display,

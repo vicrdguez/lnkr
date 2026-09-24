@@ -63,3 +63,10 @@ form.search input[type="search"] { flex: 1; }
 #bulk-bar label { display: inline; margin: 0; }
 #bulk-bar input, #bookmark-list input[type="checkbox"] { display: inline; width: auto; margin: 0; }
 #bulk-bar button, .actions button { margin: 0; padding: 0.1rem 0.5rem; }
+
+/* Bundles: the management list and the sidebar section */
+#bundle-list { list-style: none; padding: 0; margin: 0; }
+#bundle-list li { padding: 0.5rem 0; border-bottom: 1px solid light-dark(#ddd, #444); }
+#bundle-list form { display: inline; }
+#bundle-list .summary { opacity: 0.75; font-size: 0.875rem; }
+#bundles { margin-bottom: 1.5rem; }

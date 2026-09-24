@@ -99,7 +99,7 @@ bookmarkActions.post("/bookmarks/bulk", requireDatastar, async (c) => {
   const ids = idsMatching(
     sql,
     signals.selectAcross === true
-      ? listFilter(archived, parsePageSignals(signals), readPrefs(c.get("user")))
+      ? listFilter(sql, archived, parsePageSignals(signals), readPrefs(c.get("user")))
       : { archived, ids: selectedIds(signals.selected) },
   );
   if (ids.length) await ACTIONS[signals.action](depsFor(c, text(signals.bulkTags).split(/\s+/)), ids);

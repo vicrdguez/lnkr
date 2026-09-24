@@ -13,8 +13,9 @@ A person browses the Tenant's Bookmarks in the web app: the active list and the 
 - Everything works without JavaScript: the controls are links and one GET form.
 
 <!-- DEBT(#27/W3): stale since #27: the nav also has Add bookmark, every item has an Edit link, and creating and editing from the UI moved into bookmark-form.md. -->
+<!-- DEBT(#15/F3): stale since #15: the nav also has Bundles and the sidebar opens with a Bundles section, described in bundles.md. -->
 
 ## Out of scope
 - Creating and editing from the UI
 - Display preferences: items per page, description modes, date display, link target, Tag grouping are fixed
-- Preview images, Snapshots, Bundles, keyboard shortcuts
+- Preview images, Snapshots, keyboard shortcuts
