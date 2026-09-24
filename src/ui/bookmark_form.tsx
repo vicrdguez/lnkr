@@ -13,6 +13,7 @@ import {
 } from "../db/bookmarks";
 import { suggestTags } from "../db/tags";
 import { isHttpUrl } from "../lib/url";
+import { readPrefs } from "../prefs";
 import { fetchPageMetadata } from "../services/metadata";
 import { BookmarkForm, ClosePage, EMPTY_FORM, type FormValues, TagSuggestions, UrlHint } from "../views/bookmark_form";
 import { formFields } from "./form";
@@ -44,7 +45,9 @@ export const bookmarkForm = new Hono<AppEnv>();
 
 bookmarkForm.get("/bookmarks/new", (c) => {
   const query = c.req.query();
-  const values: FormValues = { ...EMPTY_FORM };
+  // The Default mark unread preference checks Unread unless the query says otherwise.
+  const unread = query.unread === undefined ? readPrefs(c.get("user")).default_mark_unread : query.unread === "true";
+  const values: FormValues = { ...EMPTY_FORM, unread };
   for (const key of ["url", "title", "description", "notes", "tags"] as const) values[key] = query[key] ?? "";
   return c.html(formPage(c, "New bookmark", "/bookmarks/new", values, { autoClose: "auto_close" in query }));
 });

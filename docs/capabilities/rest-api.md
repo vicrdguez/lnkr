@@ -13,10 +13,11 @@ A client such as the linkding browser extension presents the Tenant's API token 
 - A Bookmark can be read, replaced, patched, deleted, archived and unarchived by id; moving a URL onto another Bookmark's URL is refused; unknown ids answer not found.
 - Checking a URL answers the existing Bookmark or null together with the page's title and description; `auto_tags` is always empty.
 - Tags can be listed, created, read and deleted; creating an existing name in any case returns the existing Tag, and deleting a Tag removes it from its Bookmarks.
-- The user profile answers linkding's fields with fixed defaults, sharing disabled, and the Instance's version; only `enable_favicons` follows the Tenant's preference.
+- The user profile answers linkding's fields from the Tenant's preferences, sharing and Web Archive integration disabled, and the Instance's version.
+- A bare search term also matches a Tag name when the Tenant prefers lax Tag search.
 
 ## Out of scope
-- Filtering by Bundle, lax Tag search, sort options and relevance ranking
+- Filtering by Bundle, sort options and relevance ranking
 - Auto-tagging rules, preview images, Snapshots and Assets, Web Archive links
 - Feed tokens and RSS feeds, which the feeds capability covers
 - URL normalisation beyond trimming whitespace

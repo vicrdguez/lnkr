@@ -14,6 +14,7 @@ import {
   updateBookmark,
 } from "../db/bookmarks";
 import { isHttpUrl } from "../lib/url";
+import { readPrefs } from "../prefs";
 import { compileSearch } from "../search";
 import { fetchPageMetadata } from "../services/metadata";
 import { pageParams, paginate } from "./envelope";
@@ -63,7 +64,7 @@ export const bookmarks = new Hono<AppEnv>();
 const list = (archived: boolean) => (c: Context<AppEnv>) => {
   const sql = c.get("sql");
   const page = pageParams(c);
-  const search = compileSearch(c.req.query("q") ?? "");
+  const search = compileSearch(c.req.query("q") ?? "", { laxTags: readPrefs(c.get("user")).tag_search === "lax" });
   // As in linkding, a query that does not parse finds nothing rather than failing.
   if (!search) return c.json({ count: 0, next: null, previous: null, results: [] });
   const { count, rows } = listBookmarks(sql, {
