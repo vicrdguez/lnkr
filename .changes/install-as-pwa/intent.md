@@ -20,10 +20,10 @@ A manifest at `/manifest.json` with a share target that opens the new-bookmark f
 - Shortcuts in the manifest
 
 ## Definition of Done
-- [ ] `/manifest.json` answers valid JSON with the fields listed, without a session, with `Content-Type` `application/manifest+json`.
-- [ ] `/opensearch.xml` answers an OpenSearch description whose template points at the Instance origin, without a session.
-- [ ] The layout links both and sets `theme-color`.
-- [ ] Sharing a page whose URL arrives in `text` prefills the form's URL.
+- [x] `/manifest.json` answers valid JSON with the fields listed, without a session, with `Content-Type` `application/manifest+json`.
+- [x] `/opensearch.xml` answers an OpenSearch description whose template points at the Instance origin, without a session.
+- [x] The layout links both and sets `theme-color`.
+- [x] Sharing a page whose URL arrives in `text` prefills the form's URL.
 
 ## Manual verification
 - [ ] On Android Chrome, install lnkr from the browser menu, share a page from another app to lnkr and see the form prefilled.
