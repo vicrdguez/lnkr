@@ -28,16 +28,16 @@ A General section on the settings page with linkding's display and behaviour pre
 - Any change to the API's own page size
 
 ## Definition of Done
-- [ ] The General form shows every preference at its current value and saving changes them; invalid values fall back to defaults.
-- [ ] Theme sets `data-theme` on the document and the stylesheet renders dark and light palettes, following the system for `auto`.
-- [ ] Date display, description display and max lines, link target, URL display, action visibility and permanent notes each change the list markup as specified.
-- [ ] Lax tag search makes a bare term match a tag name; strict does not.
-- [ ] Alphabetical tag grouping renders letter headings in the sidebar.
-- [ ] Items per page controls pagination on both list pages and rejects values under 10.
-- [ ] Default mark unread preselects the checkbox on the new-bookmark form only.
-- [ ] Custom CSS is served with a `text/css` type and a long cache lifetime, and the layout links it with a hash that changes when the CSS changes; an empty CSS is not linked.
-- [ ] Saving search preferences stores the current sort and unread filter and the list uses them when the parameters are absent.
-- [ ] The profile endpoint reports the stored theme, date display, link target, tag search, display URL, permanent notes and search preferences.
+- [x] The General form shows every preference at its current value and saving changes them; invalid values fall back to defaults.
+- [x] Theme sets `data-theme` on the document and the stylesheet renders dark and light palettes, following the system for `auto`.
+- [x] Date display, description display and max lines, link target, URL display, action visibility and permanent notes each change the list markup as specified.
+- [x] Lax tag search makes a bare term match a tag name; strict does not.
+- [x] Alphabetical tag grouping renders letter headings in the sidebar.
+- [x] Items per page controls pagination on both list pages and rejects values under 10.
+- [x] Default mark unread preselects the checkbox on the new-bookmark form only.
+- [x] Custom CSS is served with a `text/css` type and a long cache lifetime, and the layout links it with a hash that changes when the CSS changes; an empty CSS is not linked.
+- [x] Saving search preferences stores the current sort and unread filter and the list uses them when the parameters are absent.
+- [x] The profile endpoint reports the stored theme, date display, link target, tag search, display URL, permanent notes and search preferences.
 
 ## Manual verification
 - [ ] Switch theme to dark, set two description lines and inline display, and check the list in a browser; then paste `body { background: pink }` as custom CSS and reload.
