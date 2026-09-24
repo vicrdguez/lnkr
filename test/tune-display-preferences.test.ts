@@ -367,6 +367,9 @@ describe("Custom CSS", () => {
 
   it("links nothing for empty CSS", async () => {
     expect(await cssLinks()).toEqual([]);
+    await saveGeneral({ custom_css: "a {}" });
+    await saveGeneral({ custom_css: "" });
+    expect(await cssLinks()).toEqual([]);
     const response = await get("/custom_css", { cookie });
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("");

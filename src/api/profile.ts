@@ -5,7 +5,7 @@ import { readPrefs } from "../prefs";
 
 export const profile = new Hono<AppEnv>();
 
-/** linkding's profile document from the Tenant's preferences; archiving and sharing stay fixed off. */
+/** linkding's profile document from the Tenant's preferences; Web Archive integration and sharing stay fixed off. */
 profile.get("/user/profile", (c) => {
   const prefs = readPrefs(c.get("user"));
   return c.json({

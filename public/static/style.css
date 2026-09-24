@@ -4,7 +4,7 @@
 @media (prefers-color-scheme: dark) {
   :root[data-theme="auto"] { color-scheme: dark; --bg: #1b1b1f; --fg: #e4e4e7; --border: #444; --error: #ff6b6b; }
 }
-/* DEBT(#27/manual): color-scheme is declared only here, so in dark mode every navigation paints white until this file loads; put <meta name="color-scheme" content="light dark"> in the layout and close-page heads. */
+/* DEBT(#27/manual): color-scheme is declared only here, so in dark mode every navigation paints white until this file loads; put a <meta name="color-scheme"> derived from the Theme preference (light, dark, or "light dark" for auto) in the layout and close-page heads. */
 body { max-width: 64rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; background: var(--bg); color: var(--fg); }
 nav { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-bottom: 2rem; }
 nav form { display: inline; }

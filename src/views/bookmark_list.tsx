@@ -111,7 +111,7 @@ const SearchForm: FC<{ path: string; q: string; sort: ListSort; unread: boolean;
     <input type="hidden" name="sort" value={sort} />
     <input type="hidden" name="unread" value={unread ? "yes" : ""} />
     <button>Search</button>
-    <button formmethod="post" formaction="/bookmarks/search-preferences">
+    <button formmethod="post" formaction="/bookmarks/search-preferences" aria-label="Save sort and filter as default">
       Save
     </button>
     <a href={link({ q: null })}>Clear</a>
@@ -208,7 +208,9 @@ const Sidebar: FC<{ tags: Listing["tags"]; q: string; link: LinkTo; prefs: Prefs
   const groups = new Map<string, Listing["tags"]>();
   for (const tag of tags) {
     const key = prefs.tag_grouping === "alphabetical" ? letterOf(tag.name) : "";
-    groups.set(key, [...(groups.get(key) ?? []), tag]);
+    const group = groups.get(key);
+    if (group) group.push(tag);
+    else groups.set(key, [tag]);
   }
   return (
     <aside id="sidebar">

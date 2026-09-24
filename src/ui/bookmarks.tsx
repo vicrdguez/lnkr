@@ -1,9 +1,9 @@
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
 import { assetCountsFor } from "../db/assets";
-import { countBookmarks, LIST_SORTS, type ListFilter, selectBookmarks, tagCounts, tagNamesFor } from "../db/bookmarks";
+import { countBookmarks, type ListFilter, selectBookmarks, tagCounts, tagNamesFor } from "../db/bookmarks";
 import { type ListDefaults, type PageSignals, parsePageSignals } from "../lib/signals";
-import { type Prefs, readPrefs, writePrefs } from "../prefs";
+import { type Prefs, parseSearchPreferences, readPrefs, writePrefs } from "../prefs";
 import { compileSearch, MATCH_NONE } from "../search";
 import { snapshotsConfigured } from "../services/snapshots";
 import { BookmarkPage, type Listing } from "../views/bookmark_list";
@@ -80,9 +80,7 @@ bookmarkPages.get("/bookmarks/archived", listPage(true));
 
 /** Saves the search form's sort and Unread filter as the defaults the list pages use when the query leaves them out. */
 bookmarkPages.post("/bookmarks/search-preferences", async (c) => {
-  const { sort, unread } = await formFields(c, "sort", "unread");
-  writePrefs(c.get("sql"), c.get("user"), {
-    search_preferences: { sort: LIST_SORTS.find((name) => name === sort) ?? "added_desc", shared: "off", unread: unread === "yes" ? "yes" : "off" },
-  });
+  const search_preferences = parseSearchPreferences(await formFields(c, "sort", "unread"));
+  writePrefs(c.get("sql"), c.get("user"), { search_preferences });
   return c.redirect("/bookmarks");
 });

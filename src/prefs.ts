@@ -149,6 +149,10 @@ export function parseGeneralForm(form: Record<string, unknown>): Partial<Prefs> 
   return patch as Partial<Prefs>;
 }
 
+/** The search form's `sort` and `unread` as saved search preferences; invalid values take their defaults. */
+export const parseSearchPreferences = ({ sort, unread }: Record<string, unknown>): SearchPreferences =>
+  read("search_preferences", { sort, unread });
+
 /** The allowed values of each enumerated preference, as the General form offers them. */
 export const CHOICES = {
   theme: THEMES,

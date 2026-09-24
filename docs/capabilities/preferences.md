@@ -6,7 +6,7 @@ A person tunes how the web app looks and behaves from the General section of the
 - The General form shows every preference at its stored value, and saving it replaces them all. A value that is not allowed, such as an unknown theme, fewer than ten items per page or fewer than one description line, takes its default instead of failing.
 - Theme `auto`, `light` or `dark` sets the page's palette; `auto` follows the system's light or dark setting.
 - In the active and Archived lists: the date the Bookmark was added shows relative to now, as `YYYY-MM-DD`, or not at all; the description shows inline with the Tags or on its own line, clamped to a chosen number of lines; titles open in a new tab or the same one; the URL can show under the title; the Edit link, the Archive or Unarchive button and the Delete button can each be hidden; Notes can start open.
-- Items per page, thirty by default and at least ten, pages both lists.
+- The number of Bookmarks per page, thirty by default and at least ten, pages both lists.
 - Lax Tag search makes a bare search term also match a Tag named exactly that term, regardless of case, in the lists and in the REST API; strict Tag search, the default, matches Tags only through `#name`.
 - The Tag sidebar groups Tags under the upper-cased first letter, with `#` for anything else, unless grouping is disabled.
 - Sticky pagination keeps the page links in view while scrolling; a collapsed side panel hides the Tag sidebar behind a "Show tags" link.

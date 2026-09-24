@@ -1,6 +1,6 @@
 # Bookmark list
 
-A person browses the Tenant's Bookmarks in the web app: the active list and the archive, searched with the query grammar, sorted, filtered to Unread, paged by the items-per-page preference, with a Tag sidebar and a Web Archive link on every Bookmark.
+A person browses the Tenant's Bookmarks in the web app: the active list and the archive, searched with the query grammar, sorted, filtered to Unread, paged by the Bookmarks-per-page preference, with a Tag sidebar and a Web Archive link on every Bookmark.
 
 ## Behaviors
 - `/bookmarks` lists active Bookmarks and `/bookmarks/archived` lists Archived ones, newest first unless a saved search preference says otherwise, thirty to a page by default. `/` sends a logged-in visitor to the list; both pages need a session and send visitors without one to login, remembering where they were going.

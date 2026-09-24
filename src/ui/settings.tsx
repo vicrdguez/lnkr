@@ -27,6 +27,24 @@ type SettingsProps = {
   notice?: string;
 };
 
+/** What the General form shows for each enumerated value. */
+const CHOICE_LABELS: Record<string, string> = {
+  auto: "Same as system",
+  light: "Light",
+  dark: "Dark",
+  relative: "Relative",
+  absolute: "Absolute",
+  hidden: "Hidden",
+  inline: "Inline",
+  separate: "Separate",
+  _blank: "New tab",
+  _self: "Same tab",
+  strict: "Strict",
+  lax: "Lax",
+  alphabetical: "Alphabetical",
+  disabled: "Disabled",
+};
+
 /** A select offering each allowed value of the enumerated preference `name`, the stored one selected. */
 const Choice = ({ prefs, name, label }: { prefs: Prefs; name: keyof typeof CHOICES; label: string }) => (
   <label>
@@ -34,7 +52,7 @@ const Choice = ({ prefs, name, label }: { prefs: Prefs; name: keyof typeof CHOIC
     <select name={name}>
       {CHOICES[name].map((value) => (
         <option value={value} selected={prefs[name] === value}>
-          {value}
+          {CHOICE_LABELS[value]}
         </option>
       ))}
     </select>
