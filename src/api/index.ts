@@ -3,6 +3,7 @@ import type { AppEnv } from "../app";
 import { requireToken } from "../auth/token";
 import { assets } from "./assets";
 import { bookmarks } from "./bookmarks";
+import { bundles } from "./bundles";
 import { profile } from "./profile";
 import { notFound } from "./serialize";
 import { tags } from "./tags";
@@ -13,6 +14,7 @@ export const api = new Hono<AppEnv>();
 
 api.use(requireToken);
 api.route("/", bookmarks);
+api.route("/", bundles);
 api.route("/", assets);
 api.route("/", tags);
 api.route("/", profile);

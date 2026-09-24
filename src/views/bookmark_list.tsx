@@ -1,5 +1,6 @@
 import type { FC } from "hono/jsx";
 import { type BookmarkRow, LIST_SORTS, type ListSort } from "../db/bookmarks";
+import type { BundleRow } from "../db/bundles";
 import type { User } from "../db/users";
 import { absoluteDate, archiveTimestamp, relativeDate } from "../lib/dates";
 import { pageUrl, tagsIn, withoutTag, withTag } from "../lib/query";
@@ -18,6 +19,8 @@ export type Listing = PageSignals & {
   items: { row: BookmarkRow; tags: string[]; snapshots: number }[];
   pages: number;
   tags: { name: string; count: number }[];
+  /** Every Bundle in sidebar order; the section renders only when there is one. */
+  bundles: BundleRow[];
   /** The message shown instead of items when there are none. */
   empty: string | null;
   now: number;
@@ -41,15 +44,26 @@ export const linkTo = ({ archived, params }: Pick<Listing, "archived" | "params"
 
 /** The signals the page declares: its query as the actions post it back, the page kind, and an empty selection. */
 // DEBT(#28/W3): Datastar rewrites @name( even inside this JSON's string literals, so a search holding text like @Component( leaves the page's signals undeclared and its actions post without them.
-const pageSignals = ({ q, sort, unread, page, archived }: Listing): string =>
-  JSON.stringify({ q, sort, unread: unread ? "yes" : "", page, archived, selected: {}, selectAcross: false, bulkTags: "", action: "" });
+const pageSignals = ({ q, sort, unread, page, bundle, archived }: Listing): string =>
+  JSON.stringify({
+    q,
+    sort,
+    unread: unread ? "yes" : "",
+    page,
+    bundle: String(bundle ?? ""),
+    archived,
+    selected: {},
+    selectAcross: false,
+    bulkTags: "",
+    action: "",
+  });
 
 export const BookmarkPage: FC<{ user: User } & Listing> = ({ user, ...listing }) => {
-  const { archived, q, sort, unread, empty } = listing;
+  const { archived, q, sort, unread, bundle, empty } = listing;
   const link = linkTo(listing);
   return (
     <Layout title={archived ? "Archived bookmarks" : "Bookmarks"} user={user} section={archived ? "archived" : "bookmarks"}>
-      <SearchForm path={pathOf(archived)} q={q} sort={sort} unread={unread} link={link} />
+      <SearchForm path={pathOf(archived)} q={q} sort={sort} unread={unread} bundle={bundle} link={link} />
       <p class="toolbar">
         {LIST_SORTS.map((value) => (
           <a href={link({ sort: value })} {...current(value === sort, "true")}>
@@ -86,18 +100,20 @@ export const ListFragments: FC<Listing & { bulkBar: boolean }> = ({ bulkBar, ...
   );
 };
 
-/** Submits `q` by GET to the page, keeping a non-default sort and the unread filter as hidden inputs. */
-const SearchForm: FC<{ path: string; q: string; sort: ListSort; unread: boolean; link: LinkTo }> = ({
+/** Submits `q` by GET to the page, keeping a non-default sort, the unread filter and the Bundle as hidden inputs. */
+const SearchForm: FC<Pick<Listing, "q" | "sort" | "unread" | "bundle"> & { path: string; link: LinkTo }> = ({
   path,
   q,
   sort,
   unread,
+  bundle,
   link,
 }) => (
   <form class="search" method="get" action={path}>
     <input type="search" name="q" value={q} placeholder="Search" aria-label="Search" />
     {sort !== "added_desc" && <input type="hidden" name="sort" value={sort} />}
     {unread && <input type="hidden" name="unread" value="yes" />}
+    {bundle !== null && <input type="hidden" name="bundle" value={String(bundle)} />}
     <button>Search</button>
     <a href={link({ q: null })}>Clear</a>
   </form>
@@ -177,10 +193,36 @@ const Pagination: FC<{ page: number; pages: number; link: LinkTo }> = ({ page, p
   </nav>
 );
 
-const Sidebar: FC<{ tags: Listing["tags"]; q: string; link: LinkTo }> = ({ tags, q, link }) => {
+/** The Bundles section while there is a Bundle, the applied one marked and clearable, then the tags of the whole result. */
+const Sidebar: FC<Pick<Listing, "tags" | "q" | "bundles" | "bundle"> & { link: LinkTo }> = ({
+  tags,
+  q,
+  bundles,
+  bundle,
+  link,
+}) => {
   const selected = new Set(tagsIn(q));
   return (
     <aside id="sidebar">
+      {bundles.length > 0 && (
+        <section id="bundles">
+          <h2>Bundles</h2>
+          <ul>
+            {bundles.map((row) => (
+              <li>
+                <a href={link({ bundle: String(row.id) })} {...current(row.id === bundle)}>
+                  {row.name}
+                </a>
+              </li>
+            ))}
+          </ul>
+          {bundle !== null && (
+            <a href={link({ bundle: null })} aria-label="Clear bundle">
+              Clear
+            </a>
+          )}
+        </section>
+      )}
       <h2>Tags</h2>
       <ul>
         {tags.map(({ name, count }) => {

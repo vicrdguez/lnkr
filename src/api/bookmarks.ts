@@ -13,8 +13,10 @@ import {
   toFields,
   updateBookmark,
 } from "../db/bookmarks";
+import { bundleFilter, getBundle } from "../db/bundles";
+import { positiveInt } from "../lib/signals";
 import { isHttpUrl } from "../lib/url";
-import { compileSearch } from "../search";
+import { compileSearch, MATCH_NONE } from "../search";
 import { fetchPageMetadata } from "../services/metadata";
 import { pageParams, paginate } from "./envelope";
 import { bookmarkJson, type FieldErrors, intParam, invalid, jsonBody, notFound, parseError } from "./serialize";
@@ -66,10 +68,14 @@ const list = (archived: boolean) => (c: Context<AppEnv>) => {
   const search = compileSearch(c.req.query("q") ?? "");
   // As in linkding, a query that does not parse finds nothing rather than failing.
   if (!search) return c.json({ count: 0, next: null, previous: null, results: [] });
+  const bundleId = c.req.query("bundle");
+  const bundle = bundleId === undefined ? undefined : getBundle(sql, positiveInt(bundleId) ?? -1);
+  if (bundle === null) return invalid(c, { bundle: ["Invalid bundle."] });
   const { count, rows } = listBookmarks(sql, {
     archived,
     ...page,
     search,
+    bundle: bundle && (bundleFilter(bundle) ?? MATCH_NONE),
     modifiedSince: sinceParam(c, "modified_since"),
     addedSince: sinceParam(c, "added_since"),
   });

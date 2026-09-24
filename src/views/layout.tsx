@@ -2,7 +2,7 @@ import { raw } from "hono/html";
 import type { FC, PropsWithChildren } from "hono/jsx";
 import type { User } from "../db/users";
 
-export type Section = "bookmarks" | "archived" | "settings";
+export type Section = "bookmarks" | "archived" | "bundles" | "settings";
 
 /** The only unescaped fragment: a constant doctype, which JSX cannot express; the close page shares it. */
 export const DOCTYPE = raw("<!doctype html>");
@@ -36,6 +36,9 @@ export const Layout: FC<PropsWithChildren<{ title: string; user?: User | null; s
               </a>
               <a href="/bookmarks/archived" {...current(section === "archived")}>
                 Archived
+              </a>
+              <a href="/bundles" {...current(section === "bundles")}>
+                Bundles
               </a>
               <a href="/bookmarks/new">Add bookmark</a>
               <a href="/settings" {...current(section === "settings")}>
