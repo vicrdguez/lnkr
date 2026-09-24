@@ -5,9 +5,15 @@
   "compatibility_date": "2026-08-01",
   "assets": { "directory": "public", "binding": "ASSETS" },
   "durable_objects": {
-    "bindings": [{ "name": "TENANT", "class_name": "Tenant" }]
+    "bindings": [
+      { "name": "TENANT", "class_name": "Tenant" },
+      { "name": "DIRECTORY", "class_name": "Directory" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Tenant"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Tenant"] },
+    { "tag": "v2", "new_sqlite_classes": ["Directory"] }
+  ],
   "r2_buckets": [{ "binding": "ASSETS_BUCKET", "bucket_name": "lnkr-assets" }],
   "vars": {
     "LD_SESSION_COOKIE_AGE": "1209600",

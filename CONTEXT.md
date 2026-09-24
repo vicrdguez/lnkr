@@ -7,12 +7,20 @@ A personal bookmark manager that keeps linkding's REST API and browser extension
 ### Ownership
 
 **Instance**:
-One deployment of lnkr reachable at one URL. An Instance serves one or more Tenants; the first version serves exactly one.
+One deployment of lnkr reachable at one URL. An Instance serves one or more Tenants.
 _Avoid_: server, app, site
 
 **Tenant**:
 One user's complete collection: their Bookmarks, Tags, Bundles, preferences, sessions and tokens. Nothing a Tenant owns is visible to another Tenant.
 _Avoid_: account, workspace, user data, profile
+
+**Directory**:
+The Instance-wide record of which Tenant each username belongs to, which users are superusers, and the Instance's settings. It holds no Bookmarks.
+_Avoid_: registry, user table
+
+**Tenant key**:
+The name of a Tenant's storage, carried as the prefix of every session cookie and token the Tenant issues. `main` for the Tenant of an Instance set up before the Directory existed.
+_Avoid_: tenant id, user id
 
 **API token**:
 A secret a client presents to act as a Tenant over the REST API. A Tenant may hold several, each named.

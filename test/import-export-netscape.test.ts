@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import fixture from "./fixtures/linkding-export.html?raw";
-import { api, apiToken, filePost, formPost, get, setupTenant } from "./helpers";
+import { api, apiToken, filePost, formPost, get, setupInstance } from "./helpers";
 
 type Json = Record<string, unknown>;
 
@@ -8,7 +8,7 @@ let cookie: string;
 let token: string;
 
 beforeEach(async () => {
-  cookie = await setupTenant();
+  cookie = await setupInstance();
   token = await apiToken(cookie);
 });
 

@@ -1,6 +1,8 @@
-import { exports } from "cloudflare:workers";
+import { runInDurableObject } from "cloudflare:test";
+import { env, exports } from "cloudflare:workers";
 import { decodeHTML, decodeHTMLAttribute } from "entities/decode";
 import { http, HttpResponse } from "msw";
+import { hashPassword } from "../src/auth/password";
 import { network } from "./network";
 
 export const BASE = "https://lnkr.test";
@@ -38,12 +40,21 @@ export function login(username: string, password: string, options?: Options): Pr
   return formPost("/login", { username, password }, options);
 }
 
-/** Creates the Tenant's user through /setup and returns its session cookie. */
-export async function setupTenant(username = USERNAME, password = PASSWORD): Promise<string> {
+/** The tenant key prefixing a credential: the part before its first dot. */
+export const tenantKeyOf = (credential: string): string => credential.slice(0, credential.indexOf("."));
+
+/** Creates the Instance's first user and its Tenant through /setup and returns its session cookie. */
+export async function setupInstance(username = USERNAME, password = PASSWORD): Promise<string> {
   const response = await formPost("/setup", { username, password });
   const cookie = cookieOf(response);
   if (!cookie) throw new Error(`setup failed: ${response.status}`);
   return cookie;
+}
+
+/** Provisions the `main` Tenant directly, as an Instance set up before the Directory existed. */
+export async function provisionLegacyMain(username = USERNAME, password = PASSWORD): Promise<void> {
+  const passwordHash = await hashPassword(password);
+  await runInDurableObject(env.TENANT.get(env.TENANT.idFromName("main")), (tenant) => tenant.provision(username, passwordHash));
 }
 
 /** The raw `sessionid` Set-Cookie line, or undefined when none was sent. */

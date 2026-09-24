@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { csrf } from "hono/csrf";
 import { getPath } from "hono/utils/url";
 import pkg from "../package.json";
@@ -16,17 +16,21 @@ import { customCss } from "./ui/custom_css";
 import { feeds } from "./ui/feeds";
 import { settings } from "./ui/settings";
 
-/** `transaction` runs `closure` atomically against `sql`, rolling its writes back when it throws. */
-export type AppDeps = { sql: SqlStorage; transaction: <T>(closure: () => T) => T };
+/**
+ * `transaction` runs `closure` atomically against `sql`, rolling its writes back when it throws; `tenantKey` is the
+ * key this Tenant writes into every credential it issues.
+ */
+export type AppDeps = { sql: SqlStorage; transaction: <T>(closure: () => T) => T; tenantKey: string };
 export type AppEnv = { Bindings: Env; Variables: { user: User } & AppDeps };
 
-export function createApp({ sql, transaction }: AppDeps): Hono<AppEnv> {
+export function createApp({ sql, transaction, tenantKey }: AppDeps): Hono<AppEnv> {
   // Under /api a trailing slash is ignored, so `/api/bookmarks` and `/api/bookmarks/` are one route.
   // This lives on the root app because sub-app options are dropped when route() merges their routes.
   const app = new Hono<AppEnv>({ getPath: (request) => getPath(request).replace(/^(\/api\/.+)\/$/, "$1") });
   app.use(async (c, next) => {
     c.set("sql", sql);
     c.set("transaction", transaction);
+    c.set("tenantKey", tenantKey);
     await next();
   });
   // Mounted before the UI middleware: every /api path ends here, so csrf and requireSession never run on it.
@@ -36,14 +40,7 @@ export function createApp({ sql, transaction }: AppDeps): Hono<AppEnv> {
   app.use(csrf());
   app.use(requireSession);
 
-  app.get("/health", (c) => {
-    try {
-      ping(sql);
-      return c.json({ version: pkg.version, status: "healthy" });
-    } catch {
-      return c.json({ version: pkg.version, status: "unhealthy" }, 500);
-    }
-  });
+  app.get("/health", (c) => health(c, sql));
   app.route("/", auth);
   app.route("/", settings);
   app.route("/", bookmarkPages);
@@ -54,4 +51,14 @@ export function createApp({ sql, transaction }: AppDeps): Hono<AppEnv> {
   app.route("/", customCss);
 
   return app;
+}
+
+/** The Instance's status and version, from a trivial query against `sql`. */
+export function health(c: Context, sql: SqlStorage): Response {
+  try {
+    ping(sql);
+    return c.json({ version: pkg.version, status: "healthy" });
+  } catch {
+    return c.json({ version: pkg.version, status: "unhealthy" }, 500);
+  }
 }

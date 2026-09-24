@@ -1,14 +1,14 @@
 import { runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { api, apiToken, BASE, formPost, get, location, select, setupTenant } from "./helpers";
+import { api, apiToken, BASE, formPost, get, location, select, setupInstance, tenantKeyOf } from "./helpers";
 
 type Json = Record<string, unknown>;
 
 let cookie: string;
 
 beforeEach(async () => {
-  cookie = await setupTenant();
+  cookie = await setupInstance();
 });
 
 /** The HTML of `path` for the session, expecting 200. */
@@ -34,7 +34,7 @@ describe("Named API tokens", () => {
     expect(response.status).toBe(200);
     const html = await response.text();
     const key = await newKey(html);
-    expect(key).toMatch(/^[0-9a-f]{40}$/);
+    expect(key).toMatch(new RegExp(`^${tenantKeyOf(cookie)}\\.[0-9a-f]{40}$`));
     expect(html).toContain("laptop");
     expect((await api(key).get("/api/user/profile/")).status).toBe(200);
     const settings = await page("/settings");
@@ -78,7 +78,8 @@ describe("Named API tokens", () => {
 
   it("lists a token from before named tokens as Default and keeps it working", async () => {
     const key = "0".repeat(39) + "1";
-    const stub = env.TENANT.get(env.TENANT.idFromName("main"));
+    const tenantKey = tenantKeyOf(cookie);
+    const stub = env.TENANT.get(env.TENANT.idFromName(tenantKey));
     await runInDurableObject(stub, (_tenant, state) => {
       state.storage.sql.exec("INSERT INTO api_tokens (key, created) VALUES (?, ?)", key, "2026-08-01T00:00:00.000Z");
     });
@@ -87,7 +88,7 @@ describe("Named API tokens", () => {
 
     expect((await select(html, "#api-tokens .name")).map((name) => name.text)).toEqual(["Default"]);
     expect(html).not.toContain(key);
-    expect((await api(key).get("/api/user/profile/")).status).toBe(200);
+    expect((await api(`${tenantKey}.${key}`).get("/api/user/profile/")).status).toBe(200);
   });
 });
 
@@ -102,7 +103,7 @@ describe("Feed token", () => {
   it("is shown as two feed URLs", async () => {
     const [all, unread] = await feedUrls(await page("/settings"));
 
-    expect(all).toMatch(new RegExp(`^${BASE}/feeds/[0-9a-f]{40}/all$`));
+    expect(all).toMatch(new RegExp(`^${BASE}/feeds/${tenantKeyOf(cookie)}\\.[0-9a-f]{40}/all$`));
     expect(unread).toBe(all.replace(/all$/, "unread"));
   });
 

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { api, apiToken, formPost, get, jsonPost, location, parseSse, select, setupTenant, type SseEvent } from "./helpers";
+import { api, apiToken, formPost, get, jsonPost, location, parseSse, select, setupInstance, type SseEvent } from "./helpers";
 
 type Json = Record<string, unknown>;
 
@@ -15,7 +15,7 @@ const BOOKMARKS = [
 ] as const;
 
 beforeEach(async () => {
-  cookie = await setupTenant();
+  cookie = await setupInstance();
   token = await apiToken(cookie);
   for (const [url, title, tag_names] of BOOKMARKS) {
     const response = await api(token).post("/api/bookmarks/?disable_scraping", { url, title, tag_names });

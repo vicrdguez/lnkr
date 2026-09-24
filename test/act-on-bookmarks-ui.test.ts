@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { api, apiToken, BASE, formPost, get, jsonPost, location, parseSse, select, setupTenant, type SseEvent } from "./helpers";
+import { api, apiToken, BASE, formPost, get, jsonPost, location, parseSse, select, setupInstance, type SseEvent } from "./helpers";
 
 type Json = Record<string, unknown>;
 
@@ -7,7 +7,7 @@ let cookie: string;
 let token: string;
 
 beforeEach(async () => {
-  cookie = await setupTenant();
+  cookie = await setupInstance();
   token = await apiToken(cookie);
 });
 
