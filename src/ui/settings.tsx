@@ -154,7 +154,8 @@ const SettingsPage = ({ user, tokens, feedToken, origin, newToken, error, notice
       <label>
         Rules
         <textarea name="rules" rows={8}>
-          {readPrefs(user).auto_tagging_rules}
+          {/* A browser drops the first newline inside <textarea>, so one is given for it and a leading blank line survives. */}
+          {`\n${readPrefs(user).auto_tagging_rules}`}
         </textarea>
       </label>
       <p class="hint">

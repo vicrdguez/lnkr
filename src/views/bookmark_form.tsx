@@ -108,7 +108,7 @@ export const UrlHint: FC<{ id?: number; autoTags?: string[] }> = ({ id, autoTags
         <a href={`/bookmarks/${id}/edit`}>Edit it</a>
       </>
     )}
-    {autoTags.length > 0 && <p class="auto-tags">Will be tagged: {autoTags.join(" ")}</p>}
+    {autoTags.length > 0 && <p>Will be tagged: {autoTags.join(" ")}</p>}
   </div>
 );
 

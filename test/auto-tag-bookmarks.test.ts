@@ -18,13 +18,13 @@ async function saveRules(rules: string): Promise<void> {
   expect(location(response).pathname).toBe("/settings");
 }
 
-/** The content of the settings page's `rules` textarea. */
+/** The content of the settings page's `rules` textarea, less the one leading newline a browser's parser drops. */
 async function shownRules(): Promise<string> {
   const response = await get("/settings", { cookie });
   expect(response.status).toBe(200);
   const areas = await select(await response.text(), 'form[action="/settings/auto-tagging"] textarea[name="rules"]');
   expect(areas).toHaveLength(1);
-  return areas[0].text;
+  return areas[0].text.replace(/^\n/, "");
 }
 
 /** The `check` answer for `url`, expecting 200. */
@@ -50,6 +50,12 @@ describe("Auto-tagging rules on the settings page", () => {
     await saveRules(rules);
 
     expect(await shownRules()).toBe(rules);
+  });
+
+  it("keeps a leading blank line", async () => {
+    await saveRules("\ngithub.com code");
+
+    expect(await shownRules()).toBe("\ngithub.com code");
   });
 
   it("clears them when saved empty", async () => {
