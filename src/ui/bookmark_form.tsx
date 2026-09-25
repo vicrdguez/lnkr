@@ -49,6 +49,8 @@ bookmarkForm.get("/bookmarks/new", (c) => {
   const unread = query.unread === undefined ? readPrefs(c.get("user")).default_mark_unread : query.unread === "true";
   const values: FormValues = { ...EMPTY_FORM, unread };
   for (const key of ["url", "title", "description", "notes", "tags"] as const) values[key] = query[key] ?? "";
+  // A share target sends the shared URL in `text` on Android; it fills an absent `url` only when it is one.
+  if (!values.url && isHttpUrl(query.text ?? "")) values.url = query.text;
   return c.html(formPage(c, "New bookmark", "/bookmarks/new", values, { autoClose: "auto_close" in query }));
 });
 

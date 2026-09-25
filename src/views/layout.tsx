@@ -3,6 +3,9 @@ import type { FC, PropsWithChildren } from "hono/jsx";
 import type { User } from "../db/users";
 import { DEFAULT_PREFS, readPrefs } from "../prefs";
 
+/** The browser chrome colour, shared by the head's `theme-color` and the manifest. */
+export const THEME_COLOR = "#1e1e1e";
+
 export type Section = "bookmarks" | "archived" | "bundles" | "settings";
 
 /** The only unescaped fragment: a constant doctype, which JSX cannot express; the close page shares it. */
@@ -31,6 +34,10 @@ export const Layout: FC<PropsWithChildren<{ title: string; user?: User | null; s
           <title>{title} · lnkr</title>
           <link rel="stylesheet" href="/static/style.css" />
           {prefs.custom_css_hash && <link rel="stylesheet" href={`/custom_css?v=${prefs.custom_css_hash}`} />}
+          <link rel="manifest" href="/manifest.json" />
+          <link rel="search" type="application/opensearchdescription+xml" title="lnkr" href="/opensearch.xml" />
+          <meta name="theme-color" content={THEME_COLOR} />
+          <link rel="apple-touch-icon" href="/static/icon.svg" />
           <script type="module" src="/static/datastar.js"></script>
         </head>
         <body class={bodyClass || undefined}>

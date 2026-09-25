@@ -14,6 +14,7 @@ import { bookmarkPages } from "./ui/bookmarks";
 import { bundlePages } from "./ui/bundles";
 import { customCss } from "./ui/custom_css";
 import { feeds } from "./ui/feeds";
+import { meta } from "./ui/meta";
 import { settings } from "./ui/settings";
 
 /** `transaction` runs `closure` atomically against `sql`, rolling its writes back when it throws. */
@@ -33,6 +34,8 @@ export function createApp({ sql, transaction }: AppDeps): Hono<AppEnv> {
   app.route("/api", api);
   // Likewise the feeds: their token stands in for the session.
   app.route("/", feeds);
+  // And the manifest and OpenSearch description, which a browser fetches without a session.
+  app.route("/", meta);
   app.use(csrf());
   app.use(requireSession);
 
