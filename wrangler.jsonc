@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lnkr",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "assets": { "directory": "public", "binding": "ASSETS" },
+  "durable_objects": {
+    "bindings": [
+      { "name": "TENANT", "class_name": "Tenant" },
+      { "name": "DIRECTORY", "class_name": "Directory" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Tenant"] },
+    { "tag": "v2", "new_sqlite_classes": ["Directory"] }
+  ],
+  "r2_buckets": [{ "binding": "ASSETS_BUCKET", "bucket_name": "lnkr-assets" }],
+  "vars": {
+    "LD_SESSION_COOKIE_AGE": "1209600",
+    "LD_FAVICON_PROVIDER": "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url={url}&size=32"
+  }
+}

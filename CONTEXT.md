@@ -7,12 +7,20 @@ A personal bookmark manager that keeps linkding's REST API and browser extension
 ### Ownership
 
 **Instance**:
-One deployment of lnkr reachable at one URL. An Instance serves one or more Tenants; the first version serves exactly one.
+One deployment of lnkr reachable at one URL. An Instance serves one or more Tenants.
 _Avoid_: server, app, site
 
 **Tenant**:
 One user's complete collection: their Bookmarks, Tags, Bundles, preferences, sessions and tokens. Nothing a Tenant owns is visible to another Tenant.
 _Avoid_: account, workspace, user data, profile
+
+**Directory**:
+The Instance-wide record of which Tenant each username belongs to, which users are superusers, and the Instance's settings. It holds no Bookmarks.
+_Avoid_: registry, user table
+
+**Tenant key**:
+The name of a Tenant's storage, carried as the prefix of every session cookie and token the Tenant issues. `main` for the Tenant of an Instance set up before the Directory existed.
+_Avoid_: tenant id, user id
 
 **API token**:
 A secret a client presents to act as a Tenant over the REST API. A Tenant may hold several, each named.
@@ -44,7 +52,7 @@ The state of a Bookmark taken out of the active list but kept, searchable, in th
 _Avoid_: hidden, closed, done
 
 **Shared**:
-The flag marking a Bookmark as visible to other Tenants of the same Instance. It has no effect while an Instance has one Tenant and exists so the API stays compatible.
+The flag marking a Bookmark as visible to other Tenants of the same Instance. Nothing reads it across Tenants yet; it exists so the API stays compatible.
 _Avoid_: public, published
 
 **Delete**:
@@ -78,7 +86,7 @@ _Avoid_: wayback, archive link
 
 ## Flagged ambiguities
 
-- **Instance vs Tenant.** "A single instance for a single user" was used to mean both. Resolution: Instance is the deployment, Tenant is the user's data. In the first version one Instance holds one Tenant, and that Tenant is the only thing the Instance stores.
+- **Instance vs Tenant.** "A single instance for a single user" was used to mean both. Resolution: Instance is the deployment, Tenant is the user's data. An Instance holds its Tenants and the Directory that finds them.
 - **Archive.** Linkding uses "archive" for the Archived state, for Wayback links and for page copies. Resolution: Archived is the Bookmark state only; page copies are Snapshots; Internet Archive links are Web Archive links.
 - **Remove vs Delete.** Linkding's UI says "Remove", its API says DELETE. Resolution: Delete everywhere.
 
@@ -98,4 +106,4 @@ _Avoid_: wayback, archive link
 
 **Dev:** If a second person joins the Instance later, do they see my Bookmarks?
 
-**Expert:** Not unless a Bookmark is Shared, and sharing only comes with multi-Tenant support. Each Tenant's data is separate.
+**Expert:** No. Each Tenant's data is separate; only Shared Bookmarks will be visible to others, once sharing exists.
