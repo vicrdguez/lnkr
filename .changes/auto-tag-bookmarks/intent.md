@@ -22,14 +22,14 @@ A text of Auto-tagging rules on the settings page, one rule per line, matched ag
 - Any change to tag search or the tag sidebar
 
 ## Definition of Done
-- [ ] The settings page shows the current rules and saving replaces them; the saved text is shown back verbatim.
-- [ ] Creating a Bookmark whose URL matches rules adds the rules' tags to the submitted ones, without duplicates, regardless of case.
-- [ ] A URL matching no rule gets only the submitted tags.
-- [ ] Host, path, query and fragment parts of a pattern each restrict the match exactly as specified.
-- [ ] Comment lines, blank lines and lines without a tag are ignored.
-- [ ] `check` returns `auto_tags` for the URL, in rule order without duplicates, and an empty list when nothing matches.
-- [ ] Posting an existing URL through the API does not add auto tags to that Bookmark.
-- [ ] The web new-bookmark form applies the rules on create and its URL hint lists the tags that will be added.
+- [x] The settings page shows the current rules and saving replaces them; the saved text is shown back verbatim.
+- [x] Creating a Bookmark whose URL matches rules adds the rules' tags to the submitted ones, without duplicates, regardless of case.
+- [x] A URL matching no rule gets only the submitted tags.
+- [x] Host, path, query and fragment parts of a pattern each restrict the match exactly as specified.
+- [x] Comment lines, blank lines and lines without a tag are ignored.
+- [x] `check` returns `auto_tags` for the URL, in rule order without duplicates, and an empty list when nothing matches.
+- [x] Posting an existing URL through the API does not add auto tags to that Bookmark.
+- [x] The web new-bookmark form applies the rules on create and its URL hint lists the tags that will be added.
 
 ## Manual verification
 - [ ] With a rule `github.com code`, open the extension on a GitHub page and see `code` prefilled in the tags field before saving.
