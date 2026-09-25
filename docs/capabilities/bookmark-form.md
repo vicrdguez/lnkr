@@ -15,5 +15,5 @@ A person adds a Bookmark by hand or from the bookmarklet, and edits any Bookmark
 ## Out of scope
 - Archiving, deleting, bulk actions and any other per-item action
 - Fetching Page metadata on save; it only reaches the form through the live check
-- Auto-tagging rules, sharing, a details view
+- Sharing, a details view
 - Preferences for a default Unread state or link target
