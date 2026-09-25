@@ -13,9 +13,10 @@ import {
   tagNamesOf,
 } from "../db/bookmarks";
 import { pageParams, parsePageSignals } from "../lib/signals";
+import { readPrefs } from "../prefs";
 import { takeSnapshot } from "../services/snapshots";
 import { BookmarkItem, ListFragments, linkTo } from "../views/bookmark_list";
-import { displayFor, listFilter, listing } from "./bookmarks";
+import { displayFor, listDefaults, listFilter, listing } from "./bookmarks";
 
 /** What an action may need: storage, the moment, and the tag names typed into the bulk bar. */
 type Deps = { sql: SqlStorage; bucket: R2Bucket; now: string; names: string[] };
@@ -59,7 +60,8 @@ const selectedIds = (selected: unknown): number[] =>
  */
 function respond(c: Context<AppEnv>, raw: Record<string, unknown>, bulk: boolean): Response {
   const signals = parsePageSignals(raw);
-  const view = listing(c.get("sql"), raw.archived === true, signals, pageParams(signals), displayFor(c));
+  const display = displayFor(c);
+  const view = listing(c.get("sql"), raw.archived === true, signals, pageParams(signals, listDefaults(display.prefs)), display);
   return sse((stream) => {
     stream.patchElements(String(<ListFragments {...view} bulkBar={bulk} />));
     const patch: Record<string, unknown> = view.page === signals.page ? {} : { page: view.page };
@@ -97,7 +99,7 @@ bookmarkActions.post("/bookmarks/bulk", requireDatastar, async (c) => {
   const ids = idsMatching(
     sql,
     signals.selectAcross === true
-      ? listFilter(sql, archived, parsePageSignals(signals))
+      ? listFilter(sql, archived, parsePageSignals(signals), readPrefs(c.get("user")))
       : { archived, ids: selectedIds(signals.selected) },
   );
   if (ids.length) await ACTIONS[signals.action](depsFor(c, text(signals.bulkTags).split(/\s+/)), ids);
@@ -122,8 +124,8 @@ bookmarkActions.post("/bookmarks/:id{[0-9]+}/snapshot", async (c) => {
     return c.redirect(row.is_archived ? "/bookmarks/archived" : "/bookmarks");
   }
   const archived = signals.archived === true;
-  const link = linkTo({ archived, params: pageParams(parsePageSignals(signals)) });
   const display = displayFor(c);
+  const link = linkTo({ archived, params: pageParams(parsePageSignals(signals), listDefaults(display.prefs)) });
   return sse(async (stream) => {
     const message = (await takeSnapshot(sql, c.env, row, now)) ?? undefined;
     const fresh = getBookmark(sql, id);

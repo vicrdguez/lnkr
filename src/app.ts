@@ -12,6 +12,7 @@ import { bookmarkActions } from "./ui/bookmark_actions";
 import { bookmarkForm } from "./ui/bookmark_form";
 import { bookmarkPages } from "./ui/bookmarks";
 import { bundlePages } from "./ui/bundles";
+import { customCss } from "./ui/custom_css";
 import { feeds } from "./ui/feeds";
 import { meta } from "./ui/meta";
 import { settings } from "./ui/settings";
@@ -53,6 +54,7 @@ export function createApp({ sql, transaction }: AppDeps): Hono<AppEnv> {
   app.route("/", bookmarkActions);
   app.route("/", bundlePages);
   app.route("/", assets);
+  app.route("/", customCss);
 
   return app;
 }

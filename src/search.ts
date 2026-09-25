@@ -27,14 +27,15 @@ class ParseError extends Error {}
  * linkding's query grammar compiled to SQL: terms and quoted phrases match substrings of title, description,
  * notes and url regardless of ASCII case; `#name` matches a tag; `!unread` and `!untagged` filter flags and any
  * other `!keyword` matches everything; `and`, `or`, `not` and parentheses combine them and adjacency means `and`.
+ * With `laxTags` a term also matches a tag named exactly the term regardless of case.
  * Null when `q` does not parse or needs too many parameters; an empty `q` matches everything.
  */
-export function compileSearch(q: string): SearchFilter | null {
+export function compileSearch(q: string, { laxTags = false }: { laxTags?: boolean } = {}): SearchFilter | null {
   try {
     const tokens = tokenize(q);
     if (tokens.length === 0) return MATCH_ALL;
     const params: string[] = [];
-    const where = compile(parse(tokens), params);
+    const where = compile(parse(tokens), params, laxTags);
     // ponytail: 90-parameter budget; split the query or index with FTS5 if real queries hit it
     return params.length > PARAM_BUDGET ? null : { where, params };
   } catch (error) {
@@ -123,13 +124,19 @@ function parse(tokens: Token[]): Node {
   return root;
 }
 
-function compile(node: Node, params: string[]): string {
+function compile(node: Node, params: string[], laxTags: boolean): string {
   switch (node.kind) {
-    case "term":
+    case "term": {
       // SQLite's lower() folds ASCII only, so the bound text is folded the same way.
       const folded = node.text.replace(/[A-Z]+/g, (upper) => upper.toLowerCase());
       params.push(...TEXT_COLUMNS.map(() => folded));
-      return `(${TEXT_COLUMNS.map((column) => `instr(lower(b.${column}), ?) > 0`).join(" OR ")})`;
+      const clauses = TEXT_COLUMNS.map((column) => `instr(lower(b.${column}), ?) > 0`);
+      if (laxTags) {
+        params.push(node.text);
+        clauses.push(TAG_EXISTS);
+      }
+      return `(${clauses.join(" OR ")})`;
+    }
     case "tag":
       params.push(node.text);
       return TAG_EXISTS;
@@ -138,8 +145,8 @@ function compile(node: Node, params: string[]): string {
       if (node.text === "untagged") return "NOT EXISTS (SELECT 1 FROM bookmark_tags bt WHERE bt.bookmark_id = b.id)";
       return "1 = 1";
     case "not":
-      return `NOT (${compile(node.operand, params)})`;
+      return `NOT (${compile(node.operand, params, laxTags)})`;
     default:
-      return `(${compile(node.left, params)} ${node.kind.toUpperCase()} ${compile(node.right, params)})`;
+      return `(${compile(node.left, params, laxTags)} ${node.kind.toUpperCase()} ${compile(node.right, params, laxTags)})`;
   }
 }

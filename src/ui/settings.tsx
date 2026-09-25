@@ -6,7 +6,7 @@ import { importEntries } from "../db/import";
 import { type ApiToken, createApiToken, deleteApiToken, getOrCreateFeedToken, listApiTokens } from "../db/tokens";
 import { updatePassword, type User } from "../db/users";
 import { absoluteDate } from "../lib/dates";
-import { readPrefs, writePrefs } from "../prefs";
+import { CHOICES, type Prefs, parseGeneralForm, readPrefs, writePrefs } from "../prefs";
 import { entryOf, parseNetscape, renderNetscape } from "../services/netscape";
 import { ErrorMessage, Field, Layout } from "../views/layout";
 import { formFields } from "./form";
@@ -27,10 +27,85 @@ type SettingsProps = {
   notice?: string;
 };
 
+/** What the General form shows for each enumerated value. */
+const CHOICE_LABELS: Record<string, string> = {
+  auto: "Same as system",
+  light: "Light",
+  dark: "Dark",
+  relative: "Relative",
+  absolute: "Absolute",
+  hidden: "Hidden",
+  inline: "Inline",
+  separate: "Separate",
+  _blank: "New tab",
+  _self: "Same tab",
+  strict: "Strict",
+  lax: "Lax",
+  alphabetical: "Alphabetical",
+  disabled: "Disabled",
+};
+
+/** A select offering each allowed value of the enumerated preference `name`, the stored one selected. */
+const Choice = ({ prefs, name, label }: { prefs: Prefs; name: keyof typeof CHOICES; label: string }) => (
+  <label>
+    {label}
+    <select name={name}>
+      {CHOICES[name].map((value) => (
+        <option value={value} selected={prefs[name] === value}>
+          {CHOICE_LABELS[value]}
+        </option>
+      ))}
+    </select>
+  </label>
+);
+
+type Flag = { [K in keyof Prefs]: Prefs[K] extends boolean ? K : never }[keyof Prefs];
+
+const Check = ({ prefs, name, label }: { prefs: Prefs; name: Flag; label: string }) => (
+  <label class="checkbox">
+    <input type="checkbox" name={name} checked={prefs[name]} /> {label}
+  </label>
+);
+
+/** linkding's display and behaviour preferences, each at its stored value. */
+const GeneralForm = ({ prefs }: { prefs: Prefs }) => (
+  <form method="post" action="/settings/general">
+    <Choice prefs={prefs} name="theme" label="Theme" />
+    <Choice prefs={prefs} name="bookmark_date_display" label="Bookmark date format" />
+    <Choice prefs={prefs} name="bookmark_description_display" label="Bookmark description" />
+    <label>
+      Bookmark description max lines
+      <input type="number" name="bookmark_description_max_lines" min="1" value={String(prefs.bookmark_description_max_lines)} />
+    </label>
+    <Choice prefs={prefs} name="bookmark_link_target" label="Open bookmarks in" />
+    <Check prefs={prefs} name="display_url" label="Show bookmark URL" />
+    <Choice prefs={prefs} name="tag_search" label="Tag search" />
+    <Choice prefs={prefs} name="tag_grouping" label="Tag grouping" />
+    <Check prefs={prefs} name="sticky_pagination" label="Sticky pagination" />
+    <Check prefs={prefs} name="collapse_side_panel" label="Collapse side panel" />
+    <label>
+      Items per page
+      <input type="number" name="items_per_page" min="10" value={String(prefs.items_per_page)} />
+    </label>
+    <Check prefs={prefs} name="display_edit_bookmark_action" label="Show Edit" />
+    <Check prefs={prefs} name="display_archive_bookmark_action" label="Show Archive" />
+    <Check prefs={prefs} name="display_remove_bookmark_action" label="Show Delete" />
+    <Check prefs={prefs} name="default_mark_unread" label="Mark new bookmarks unread" />
+    <Check prefs={prefs} name="permanent_notes" label="Always show notes" />
+    <label>
+      Custom CSS
+      <textarea name="custom_css">{prefs.custom_css}</textarea>
+    </label>
+    <button>Save</button>
+  </form>
+);
+
 const SettingsPage = ({ user, tokens, feedToken, origin, newToken, error, notice }: SettingsProps) => (
   <Layout title="Settings" user={user} section="settings">
     <ErrorMessage message={error} />
     {notice && <p role="status">{notice}</p>}
+    <h2>General</h2>
+    <GeneralForm prefs={readPrefs(user)} />
     <h2>Bookmarklet</h2>
     <p>
       Drag this link to your bookmarks bar: <a href={bookmarklet(origin)}>Save to lnkr</a>
@@ -150,6 +225,21 @@ settings.post("/settings/favicons", async (c) => {
   writePrefs(c.get("sql"), c.get("user"), { enable_favicons: !!enable_favicons });
   return c.redirect("/settings");
 });
+
+/** Saves the General form whole; an invalid value takes its default rather than failing. */
+settings.post("/settings/general", async (c) => {
+  const patch = parseGeneralForm(await c.req.parseBody());
+  patch.custom_css_hash = await cssHash(patch.custom_css ?? "");
+  writePrefs(c.get("sql"), c.get("user"), patch);
+  return c.redirect("/settings");
+});
+
+/** The first eight hex digits of the CSS's SHA-256, or empty for empty CSS so the layout links nothing. */
+async function cssHash(css: string): Promise<string> {
+  if (!css) return "";
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(css)));
+  return [...digest.slice(0, 4)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 
 settings.post("/settings/password", async (c) => {
   const user = c.get("user");
