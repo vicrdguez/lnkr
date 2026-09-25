@@ -1,5 +1,6 @@
 import { type Context, Hono } from "hono";
 import type { AppEnv } from "../app";
+import { formatCredential } from "../auth/credential";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { allBookmarks, tagNamesFor } from "../db/bookmarks";
 import { importEntries } from "../db/import";
@@ -176,7 +177,7 @@ const SettingsPage = ({ user, tokens, feedToken, origin, newToken, error, notice
 /** The settings page with the Tenant's API tokens and its feed token, created on first view. */
 const settingsPage = (c: Context<AppEnv>, extra: Pick<SettingsProps, "newToken" | "error" | "notice"> = {}) => {
   const sql = c.get("sql");
-  const feedToken = getOrCreateFeedToken(sql, new Date().toISOString());
+  const feedToken = formatCredential(c.get("tenantKey"), getOrCreateFeedToken(sql, new Date().toISOString()));
   const origin = new URL(c.req.url).origin;
   return <SettingsPage user={c.get("user")} tokens={listApiTokens(sql)} feedToken={feedToken} origin={origin} {...extra} />;
 };
@@ -212,7 +213,7 @@ settings.post("/settings/tokens", async (c) => {
   const name = (await formFields(c, "name")).name.trim();
   if (!name) return c.html(settingsPage(c, { error: "A token needs a name." }), 400);
   const { key } = createApiToken(c.get("sql"), name, new Date().toISOString());
-  return c.html(settingsPage(c, { newToken: key }));
+  return c.html(settingsPage(c, { newToken: formatCredential(c.get("tenantKey"), key) }));
 });
 
 settings.post("/settings/tokens/:id{[0-9]+}/revoke", (c) => {

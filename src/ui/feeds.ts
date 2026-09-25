@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { pageParams } from "../api/envelope";
 import type { AppEnv } from "../app";
+import { bareCredential } from "../auth/credential";
 import { type BookmarkRow, selectBookmarks } from "../db/bookmarks";
 import { feedTokenExists } from "../db/tokens";
 import { compileSearch, MATCH_NONE } from "../search";
@@ -50,7 +51,7 @@ export const feeds = new Hono<AppEnv>();
 feeds.get("/feeds/:token/:kind{all|unread}", (c) => {
   const kind = c.req.param("kind") as FeedKind;
   const sql = c.get("sql");
-  if (!feedTokenExists(sql, c.req.param("token"))) return c.notFound();
+  if (!feedTokenExists(sql, bareCredential(c.req.param("token")))) return c.notFound();
   const rows = selectBookmarks(sql, {
     archived: false,
     unread: kind === "unread",

@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { api, apiToken, BASE, formPost, get, location, mockPage, parseSse, select, setupTenant, type SseEvent } from "./helpers";
+import { api, apiToken, BASE, formPost, get, location, mockPage, parseSse, select, setupInstance, type SseEvent } from "./helpers";
 import { network } from "./network";
 
 type Json = Record<string, unknown>;
@@ -9,7 +9,7 @@ let cookie: string;
 let token: string;
 
 beforeEach(async () => {
-  cookie = await setupTenant();
+  cookie = await setupInstance();
   token = await apiToken(cookie);
 });
 

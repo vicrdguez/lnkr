@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { api, apiToken, formPost, get, location, select, setupTenant } from "./helpers";
+import { api, apiToken, formPost, get, location, select, setupInstance } from "./helpers";
 
 const PROVIDER = "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url={url}&size=32";
 
@@ -7,7 +7,7 @@ let cookie: string;
 let token: string;
 
 beforeEach(async () => {
-  cookie = await setupTenant();
+  cookie = await setupInstance();
   token = await apiToken(cookie);
 });
 

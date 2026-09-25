@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import pkg from "../package.json";
-import { api, apiToken, get, mockPage, setupTenant } from "./helpers";
+import { api, apiToken, get, mockPage, setupInstance, tenantKeyOf } from "./helpers";
 import { network } from "./network";
 
 type Json = Record<string, unknown>;
@@ -11,7 +11,7 @@ let cookie: string;
 let token: string;
 
 beforeEach(async () => {
-  cookie = await setupTenant();
+  cookie = await setupInstance();
   token = await apiToken(cookie);
 });
 
@@ -35,7 +35,8 @@ describe("API authentication", () => {
   });
 
   it("refuses an unknown token", async () => {
-    const response = await api("0".repeat(40)).get("/api/bookmarks/");
+    // Prefixed with this Tenant's key: a bare unknown token would reach the unprovisioned main Tenant instead.
+    const response = await api(`${tenantKeyOf(token)}.${"0".repeat(40)}`).get("/api/bookmarks/");
 
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({ detail: "Invalid token." });

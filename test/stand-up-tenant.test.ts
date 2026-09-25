@@ -11,7 +11,7 @@ import {
   location,
   login,
   PASSWORD,
-  setupTenant,
+  setupInstance,
   USERNAME,
 } from "./helpers";
 
@@ -78,7 +78,7 @@ describe("First-run setup", () => {
   });
 
   it.each(["GET", "POST"])("is closed once a user exists (%s)", async (method) => {
-    await setupTenant();
+    await setupInstance();
 
     const response =
       method === "GET" ? await get("/setup") : await formPost("/setup", { username: "eve", password: "secret" });
@@ -92,7 +92,7 @@ describe("First-run setup", () => {
 
 describe("Password login", () => {
   beforeEach(async () => {
-    await setupTenant();
+    await setupInstance();
   });
 
   it("redirects a protected page to login", async () => {
@@ -167,7 +167,7 @@ describe("Password login", () => {
 
 describe("Login attempt limiter", () => {
   beforeEach(async () => {
-    await setupTenant();
+    await setupInstance();
   });
 
   async function failLogins(times: number) {
@@ -212,7 +212,7 @@ describe("Session lifecycle", () => {
   let cookie: string;
 
   beforeEach(async () => {
-    cookie = await setupTenant();
+    cookie = await setupInstance();
   });
 
   it("ends the session on logout", async () => {
@@ -244,7 +244,7 @@ describe("Change password", () => {
   let cookie: string;
 
   beforeEach(async () => {
-    cookie = await setupTenant();
+    cookie = await setupInstance();
   });
 
   it("changes with the current password", async () => {
@@ -276,7 +276,7 @@ describe("Change password", () => {
 
 describe("Cross-site form protection", () => {
   it("refuses a form POST from another origin", async () => {
-    await setupTenant();
+    await setupInstance();
 
     const response = await login(USERNAME, PASSWORD, { origin: "https://evil.example" });
 

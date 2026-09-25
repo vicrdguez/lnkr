@@ -1,66 +1,31 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../app";
-import { hashPassword, verifyPassword } from "../auth/password";
+import { verifyPassword } from "../auth/password";
 import { endSession, sessionUser, startSession } from "../auth/session";
 import { clearLoginFailures, isLoginLocked, recordLoginFailure } from "../db/sessions";
-import { countUsers, createUser, findUserByUsername } from "../db/users";
-import { ErrorMessage, Field, Layout } from "../views/layout";
+import { findUserByUsername } from "../db/users";
+import { INVALID_CREDENTIALS, LoginForm } from "../views/auth";
 import { formFields } from "./form";
-
-const SetupPage = ({ error }: { error?: string }) => (
-  <Layout title="Set up lnkr">
-    <ErrorMessage message={error} />
-    <form method="post">
-      <Field label="Username" name="username" autocomplete="username" />
-      <Field label="Password" name="password" type="password" autocomplete="new-password" />
-      <button>Set up</button>
-    </form>
-  </Layout>
-);
-
-const LoginPage = ({ error }: { error?: string }) => (
-  <Layout title="Log in">
-    <ErrorMessage message={error} />
-    <form method="post">
-      <Field label="Username" name="username" autocomplete="username" />
-      <Field label="Password" name="password" type="password" autocomplete="current-password" />
-      <button>Log in</button>
-    </form>
-  </Layout>
-);
 
 export const auth = new Hono<AppEnv>();
 
 auth.get("/", (c) => c.redirect(sessionUser(c) ? "/bookmarks" : "/login"));
 
-auth.get("/setup", (c) => (countUsers(c.get("sql")) ? c.redirect("/login") : c.html(<SetupPage />)));
+// Setup belongs to the Directory; a provisioned Tenant has nothing to set up.
+auth.get("/setup", (c) => c.redirect("/login"));
 
-auth.post("/setup", async (c) => {
-  const sql = c.get("sql");
-  if (countUsers(sql)) return c.redirect("/login");
-  const { username, password } = await formFields(c, "username", "password");
-  const name = username.trim();
-  if (!name || !password) return c.html(<SetupPage error="Username and password are required." />, 400);
-  const passwordHash = await hashPassword(password);
-  // Hashing yielded; another request may have completed setup meanwhile.
-  if (countUsers(sql)) return c.redirect("/login");
-  const user = createUser(sql, name, passwordHash, new Date().toISOString());
-  await startSession(c, user.id);
-  return c.redirect("/");
-});
-
-auth.get("/login", (c) => c.html(<LoginPage />));
+auth.get("/login", (c) => c.html(<LoginForm />));
 
 auth.post("/login", async (c) => {
   const sql = c.get("sql");
   const { username, password } = await formFields(c, "username", "password");
   if (isLoginLocked(sql, username, new Date().toISOString())) {
-    return c.html(<LoginPage error="Too many attempts. Try again later." />, 429);
+    return c.html(<LoginForm error="Too many attempts. Try again later." />, 429);
   }
   const user = findUserByUsername(sql, username);
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
     recordLoginFailure(sql, username, new Date().toISOString());
-    return c.html(<LoginPage error="Invalid username or password" />, 401);
+    return c.html(<LoginForm error={INVALID_CREDENTIALS} />, 401);
   }
   clearLoginFailures(sql, username);
   await startSession(c, user.id);

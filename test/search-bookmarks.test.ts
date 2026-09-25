@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { api, apiToken, setupTenant } from "./helpers";
+import { api, apiToken, setupInstance } from "./helpers";
 
 type Json = Record<string, unknown>;
 
@@ -11,7 +11,7 @@ const b4 = "https://example.com/archived-python";
 let token: string;
 
 beforeEach(async () => {
-  token = await apiToken(await setupTenant());
+  token = await apiToken(await setupInstance());
   vi.setSystemTime(new Date("2026-09-01T00:00:00.000Z"));
   await create({ url: b1, title: "Python guide", description: "Learn Python fast", tag_names: ["python", "tutorial"], unread: true });
   vi.setSystemTime(new Date("2026-09-10T00:00:00.000Z"));
