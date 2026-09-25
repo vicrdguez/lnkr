@@ -20,6 +20,7 @@ export class Tenant extends DurableObject<Env> {
   }
 
   async fetch(request: Request): Promise<Response> {
+    // DEBT(#36/W1): a bare stale sessionid cookie or token (linkding's cookie name, same host) on a fresh Instance routes to the unprovisioned main and gets this 404 on every path, /setup and /login included, until the browser drops it.
     // A Tenant nobody provisioned, such as one named by a forged prefix, has nothing to serve.
     if (!countUsers(this.ctx.storage.sql)) return new Response("Not Found", { status: 404 });
     return this.app.fetch(request, this.env);
