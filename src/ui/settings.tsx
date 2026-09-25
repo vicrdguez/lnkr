@@ -149,6 +149,23 @@ const SettingsPage = ({ user, tokens, feedToken, origin, newToken, error, notice
       </p>
       <button>Save</button>
     </form>
+    <h2>Auto tagging</h2>
+    <form method="post" action="/settings/auto-tagging">
+      <label>
+        Rules
+        <textarea name="rules" rows={8}>
+          {/* A browser drops the first newline inside <textarea>, so one is given for it and a leading blank line survives. */}
+          {`\n${readPrefs(user).auto_tagging_rules}`}
+        </textarea>
+      </label>
+      <p class="hint">
+        One rule per line: a URL pattern, then the tags to add, as in <code>github.com/sissbruecker code linkding</code>.
+        The pattern is a host with an optional path, query and fragment; the host also matches its subdomains, the path
+        and fragment match as prefixes, and a query key without a value matches any value. New bookmarks whose URL
+        matches get the tags. Lines starting with <code>#</code> are comments.
+      </p>
+      <button>Save</button>
+    </form>
     <h2>Import</h2>
     <form method="post" action="/settings/import" enctype="multipart/form-data">
       <Field label="Bookmarks file" name="file" type="file" />
@@ -224,6 +241,13 @@ settings.post("/settings/tokens/:id{[0-9]+}/revoke", (c) => {
 settings.post("/settings/favicons", async (c) => {
   const { enable_favicons } = await formFields(c, "enable_favicons");
   writePrefs(c.get("sql"), c.get("user"), { enable_favicons: !!enable_favicons });
+  return c.redirect("/settings");
+});
+
+/** Stores the Auto-tagging rules as typed; lines that are not rules are ignored when they are applied. */
+settings.post("/settings/auto-tagging", async (c) => {
+  const { rules } = await formFields(c, "rules");
+  writePrefs(c.get("sql"), c.get("user"), { auto_tagging_rules: rules });
   return c.redirect("/settings");
 });
 

@@ -16,7 +16,7 @@ import {
 import { bundleFilter, getBundle } from "../db/bundles";
 import { positiveInt } from "../lib/signals";
 import { isHttpUrl } from "../lib/url";
-import { readPrefs } from "../prefs";
+import { autoTagsFor, readPrefs } from "../prefs";
 import { compileSearch, MATCH_NONE } from "../search";
 import { fetchPageMetadata } from "../services/metadata";
 import { pageParams, paginate } from "./envelope";
@@ -87,7 +87,7 @@ bookmarks.get("/bookmarks", list(false));
 // Fixed paths come before the :id routes so they are never read as ids.
 bookmarks.get("/bookmarks/archived", list(true));
 
-/** The existing bookmark for `url` and the page's metadata, fetched even when the bookmark exists. */
+/** The existing bookmark for `url`, the page's metadata, fetched even when the bookmark exists, and the auto tags. */
 bookmarks.get("/bookmarks/check", async (c) => {
   const url = c.req.query("url")?.trim();
   if (!url) return invalid(c, { url: ["This field is required."] });
@@ -95,12 +95,13 @@ bookmarks.get("/bookmarks/check", async (c) => {
   const metadata = await fetchPageMetadata(url);
   const sql = c.get("sql");
   const existing = findBookmarkByUrl(sql, url);
-  return c.json({ bookmark: existing ? bookmarkJson(sql, existing) : null, metadata, auto_tags: [] });
+  return c.json({ bookmark: existing ? bookmarkJson(sql, existing) : null, metadata, auto_tags: autoTagsFor(c.get("user"), url) });
 });
 
 /**
- * Creates the bookmark, or updates the one that already has its URL; either way 201. `disable_html_snapshot` in the
- * query is accepted and ignored: Snapshots are only ever taken by hand.
+ * Creates the bookmark with its auto tags added to the submitted ones, or updates the one that already has its URL,
+ * adding none; either way 201. `disable_html_snapshot` in the query is accepted and ignored: Snapshots are only ever
+ * taken by hand.
  */
 bookmarks.post("/bookmarks", async (c) => {
   const body = await jsonBody(c);
@@ -119,7 +120,8 @@ bookmarks.post("/bookmarks", async (c) => {
   fields.title ||= page?.title ?? "";
   fields.description ||= page?.description ?? "";
   const row = existing ? updateBookmark(sql, existing.id, fields, now) : insertBookmark(sql, fields, now);
-  if (provided.tag_names) setTags(sql, row.id, provided.tag_names, now);
+  const tagNames = existing ? provided.tag_names : [...(provided.tag_names ?? []), ...autoTagsFor(c.get("user"), url)];
+  if (tagNames) setTags(sql, row.id, tagNames, now);
   return c.json(bookmarkJson(sql, row), 201);
 });
 
