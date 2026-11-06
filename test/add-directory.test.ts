@@ -42,6 +42,12 @@ const target = (response: Response) => {
   return url.pathname + url.search;
 };
 
+describe("Public metadata on a fresh Instance", () => {
+  it.each(["/manifest.json", "/opensearch.xml"])("serves %s before setup", async (path) => {
+    expect((await get(path)).status).toBe(200);
+  });
+});
+
 describe("Setup on a fresh Instance", () => {
   it("creates the superuser and a Tenant", async () => {
     const response = await formPost("/setup", { username: USERNAME, password: PASSWORD });
@@ -236,7 +242,7 @@ describe("Routing by credential prefix", () => {
     expect(target(response)).toBe("/login");
   });
 
-  it.each(["/settings", "/bookmarks", "/setup"])("answers 404 at %s for a forged prefix", async (path) => {
+  it.each(["/settings", "/bookmarks", "/setup", "/manifest.json", "/opensearch.xml"])("answers 404 at %s for a forged prefix", async (path) => {
     expect((await get(path, { cookie: "0123456789abcdef0123456789abcdef.x" })).status).toBe(404);
   });
 

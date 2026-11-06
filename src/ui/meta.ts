@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import type { AppEnv } from "../app";
 import { THEME_COLOR } from "../views/layout";
 import { xmlEscape } from "./feeds";
 
@@ -18,7 +17,7 @@ const MANIFEST = JSON.stringify({
 });
 
 /** The web app manifest and the OpenSearch description, public constants a browser fetches without a session. */
-export const meta = new Hono<AppEnv>();
+export const meta = new Hono();
 
 meta.get("/manifest.json", (c) => c.body(MANIFEST, 200, { "content-type": "application/manifest+json", ...CACHE_A_DAY }));
 

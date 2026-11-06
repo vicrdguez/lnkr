@@ -8,6 +8,7 @@ import { setSessionCookie } from "./auth/session";
 import { MISSING_CREDENTIALS } from "./auth/token";
 import { countUsers, deleteUser, findUser, insertUser, runDirectoryMigrations } from "./db/directory";
 import { formFields } from "./ui/form";
+import { meta } from "./ui/meta";
 import { INVALID_CREDENTIALS, LoginForm, SetupForm } from "./views/auth";
 
 /** Usernames, their tenant keys and Instance settings; serves every request that carries no credential. */
@@ -40,9 +41,9 @@ export class Directory extends DurableObject<Env> {
   }
 }
 
-/** The pages a visitor without a credential can reach: login, first-run setup and health. */
 export function createDirectoryApp({ sql, env }: { sql: SqlStorage; env: Env }): Hono<{ Bindings: Env }> {
   const app = new Hono<{ Bindings: Env }>();
+  app.route("/", meta);
   // Without a token an API client gets linkding's 401 and a feed 404, as the Tenant answers them, not a login page.
   app.all("/api/*", (c) => c.json(MISSING_CREDENTIALS, 401));
   app.all("/feeds/*", (c) => c.notFound());

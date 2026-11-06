@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { BASE, get, select, setupTenant } from "./helpers";
+import { BASE, get, select, setupInstance } from "./helpers";
 
 let cookie: string;
 
 beforeEach(async () => {
-  cookie = await setupTenant();
+  cookie = await setupInstance();
 });
 
 /** The HTML of `path` for the session, expecting 200. */
@@ -65,6 +65,14 @@ describe("OpenSearch", () => {
     const body = await (await get("/opensearch.xml", { base: "https://other.test" })).text();
 
     expect(body).toContain('<Url type="text/html" template="https://other.test/bookmarks?q={searchTerms}"/>');
+  });
+});
+
+describe("Public metadata", () => {
+  it.each(["/manifest.json", "/opensearch.xml"])("serves %s with a valid session", async (path) => {
+    const response = await get(path, { cookie });
+
+    expect(response.status).toBe(200);
   });
 });
 
