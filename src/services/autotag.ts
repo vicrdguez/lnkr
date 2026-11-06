@@ -14,17 +14,19 @@ export function parseRules(text: string): Rule[] {
     const [raw, ...tags] = trimmed.split(/\s+/);
     if (!tags.length) continue;
     const pattern = raw.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");
+    const authority = pattern.split(/[/?#]/, 1)[0];
+    if (!authority || /[\x00-\x1f\x7f@\\]/.test(authority)) continue;
     let parsed: URL;
     try {
       parsed = new URL(`https://${pattern}`);
     } catch {
       continue;
     }
-    // Without a `/` before the query or fragment the pattern leaves the path free, although URL reports `/`.
-    const hasPath = /^[^?#]*\//.test(pattern);
+    // URL normalizes dot segments, but rule paths are literal prefixes. An absent path leaves the path free.
+    const path = pattern.slice(authority.length).match(/^\/[^?#]*/)?.[0] ?? null;
     rules.push({
       host: parsed.hostname.toLowerCase(),
-      path: hasPath ? parsed.pathname : null,
+      path,
       query: parsed.searchParams,
       fragment: parsed.hash.slice(1) || null,
       tags,
@@ -41,18 +43,20 @@ export function autoTags(rules: Rule[], url: string): string[] {
   } catch {
     return [];
   }
+  const input = url.replace(/^[\x00-\x20]+|[\x00-\x20]+$/g, "").replace(/[\t\n\r]/g, "");
+  const path = input.match(/^[a-z][a-z0-9+.-]*:[/\\]*[^/\\?#]*([/\\][^?#]*)?/i)?.[1] ?? "/";
   const byKey = new Map<string, string>();
   for (const rule of rules) {
-    if (!matches(rule, target)) continue;
+    if (!matches(rule, target, path)) continue;
     for (const tag of rule.tags) if (!byKey.has(tag.toLowerCase())) byKey.set(tag.toLowerCase(), tag);
   }
   return [...byKey.values()];
 }
 
-function matches(rule: Rule, url: URL): boolean {
+function matches(rule: Rule, url: URL, path: string): boolean {
   const host = url.hostname.toLowerCase();
   if (host !== rule.host && !host.endsWith(`.${rule.host}`)) return false;
-  if (rule.path !== null && !url.pathname.startsWith(rule.path)) return false;
+  if (rule.path !== null && !path.startsWith(rule.path)) return false;
   for (const [key, value] of rule.query) {
     if (!url.searchParams.has(key)) return false;
     if (value && !url.searchParams.getAll(key).includes(value)) return false;

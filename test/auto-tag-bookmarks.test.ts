@@ -233,6 +233,36 @@ describe("Rule matching", () => {
     expect(await autoTagsOf(url)).toEqual(result);
   });
 
+  it.each([
+    ["example.com/docs", "https://example.com/blog/../docs/a", []],
+    ["example.com/docs", "https://example.com/docs/../blog", ["hit"]],
+    ["example.com/a/../admin", "https://example.com/admin", []],
+    ["example.com/a/../admin", "https://example.com/a/../admin/page", ["hit"]],
+    ["example.com@evil.org", "https://evil.org/", []],
+    ["/example.org", "https://example.org/", []],
+    ["https:///example.org", "https://example.org/", []],
+    ["https://user:pass@example.com/docs", "https://example.com/docs", []],
+    ["\\example.org", "https://example.org/", []],
+    ["https://\\example.org", "https://example.org/", []],
+    ["https://example.com/docs/../admin", "https://example.com/docs/../admin/page", ["hit"]],
+    ["example.com/docs", "https://example.com/blog/%2e%2e/docs", []],
+    ["example.com/docs/%2e%2e/admin", "https://example.com/docs/%2e%2e/admin/page", ["hit"]],
+    ["example.com/a%2Fb", "https://example.com/a/b", []],
+    ["example.com/a%2Fb", "https://example.com/a%2fb", []],
+    ["example.com/docs", "https:\t//example.com/docs", ["hit"]],
+    ["example.com\u0000", "https://example.com/", []],
+    ["example.com/docs", "https://reader:secret@example.com/docs/../other", ["hit"]],
+    ["example.com?next=/docs#intro/", "https://example.com/other?next=/docs#intro/x", ["hit"]],
+    ["example.com/docs?next=/other#intro/", "https://example.com/docs/a?next=/other#intro/x", ["hit"]],
+    ["[2001:DB8::1]:8443/docs/../admin", "https://[2001:db8::1]:9443/docs/../admin/page", ["hit"]],
+    ["http://[::1]:8443?next=/docs", "https://[::1]:9443/other?next=/docs", ["hit"]],
+  ])("matches the literal pattern %s against %s", async (pattern, url, result) => {
+    await saveRules(`${pattern} hit`);
+
+    expect(await autoTagsOf(url)).toEqual(result);
+    expect((await create(url)).tag_names).toEqual(result);
+  });
+
   it("ignores comments, blank lines and tagless lines", async () => {
     await saveRules("# only a comment\n\nexample.com\nexample.org hit");
 
