@@ -99,8 +99,8 @@ const Snapshots: FC<{ assets: AssetRow[] }> = ({ assets }) => (
   </section>
 );
 
-/** The notice under the URL field; empty unless the URL belongs to Bookmark `id`. */
-export const UrlHint: FC<{ id?: number }> = ({ id }) => (
+/** The notice under the URL field: whether the URL belongs to Bookmark `id`, and the auto tags saving would add. */
+export const UrlHint: FC<{ id?: number; autoTags?: string[] }> = ({ id, autoTags = [] }) => (
   <div id="url-hint" class="hint" role="status">
     {id !== undefined && (
       <>
@@ -108,6 +108,7 @@ export const UrlHint: FC<{ id?: number }> = ({ id }) => (
         <a href={`/bookmarks/${id}/edit`}>Edit it</a>
       </>
     )}
+    {autoTags.length > 0 && <p>Will be tagged: {autoTags.join(" ")}</p>}
   </div>
 );
 

@@ -13,7 +13,7 @@ import {
 } from "../db/bookmarks";
 import { suggestTags } from "../db/tags";
 import { isHttpUrl } from "../lib/url";
-import { readPrefs } from "../prefs";
+import { autoTagsFor, readPrefs } from "../prefs";
 import { fetchPageMetadata } from "../services/metadata";
 import { BookmarkForm, ClosePage, EMPTY_FORM, type FormValues, TagSuggestions, UrlHint } from "../views/bookmark_form";
 import { formFields } from "./form";
@@ -54,7 +54,10 @@ bookmarkForm.get("/bookmarks/new", (c) => {
   return c.html(formPage(c, "New bookmark", "/bookmarks/new", values, { autoClose: "auto_close" in query }));
 });
 
-/** Creates the Bookmark, or updates the one that already has the URL, and moves on to the list or the close page. */
+/**
+ * Creates the Bookmark with its auto tags added to the typed ones, or updates the one that already has the URL, adding
+ * none, and moves on to the list or the close page.
+ */
 bookmarkForm.post("/bookmarks/new", async (c) => {
   const { values, tagNames, autoClose } = await readForm(c);
   if (!isHttpUrl(values.url)) {
@@ -62,7 +65,8 @@ bookmarkForm.post("/bookmarks/new", async (c) => {
   }
   const sql = c.get("sql");
   const existing = findBookmarkByUrl(sql, values.url);
-  const fields = { ...(existing ? toFields(existing) : EMPTY_BOOKMARK), ...values, tags: tagNames };
+  const tags = existing ? tagNames : [...tagNames, ...autoTagsFor(c.get("user"), values.url)];
+  const fields = { ...(existing ? toFields(existing) : EMPTY_BOOKMARK), ...values, tags };
   saveBookmark(sql, fields, new Date().toISOString(), existing?.id);
   return c.redirect(autoClose ? "/bookmarks/close" : "/bookmarks");
 });
@@ -71,8 +75,9 @@ bookmarkForm.get("/bookmarks/close", (c) => c.html(<ClosePage />));
 
 /**
  * Patches `#url-hint` with the duplicate notice when another Bookmark has the URL, filling every form signal from
- * it on the new form; otherwise clears the hint and fills only an empty title and description from the page's
- * metadata. The edit form sends its Bookmark's `id`, so its own URL is no duplicate and a duplicate only warns.
+ * it on the new form; otherwise the hint lists the auto tags a new Bookmark would get, and only an empty title and
+ * description are filled from the page's metadata. The edit form sends its Bookmark's `id`, so its own URL is no
+ * duplicate, a duplicate only warns, and no auto tags are listed since editing adds none.
  */
 bookmarkForm.get("/bookmarks/check", requireDatastar, async (c) => {
   const sql = c.get("sql");
@@ -82,7 +87,8 @@ bookmarkForm.get("/bookmarks/check", requireDatastar, async (c) => {
   return sse(async (stream) => {
     const existing = isHttpUrl(url) ? findBookmarkByUrl(sql, url) : null;
     const duplicate = existing && existing.id !== editing ? existing : null;
-    stream.patchElements(String(<UrlHint id={duplicate?.id} />));
+    const autoTags = existing || editing !== undefined || !isHttpUrl(url) ? [] : autoTagsFor(c.get("user"), url);
+    stream.patchElements(String(<UrlHint id={duplicate?.id} autoTags={autoTags} />));
     if (duplicate && editing === undefined) {
       const { title, description, notes, tags, unread } = formValues(sql, duplicate);
       stream.patchSignals(JSON.stringify({ title, description, notes, tags, unread }));

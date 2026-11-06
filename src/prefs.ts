@@ -1,5 +1,6 @@
 import { LIST_SORTS, type ListSort } from "./db/bookmarks";
 import { updatePrefs, type User } from "./db/users";
+import { autoTags, parseRules } from "./services/autotag";
 
 const THEMES = ["auto", "light", "dark"] as const;
 const DATE_DISPLAYS = ["relative", "absolute", "hidden"] as const;
@@ -34,6 +35,8 @@ export type Prefs = {
   custom_css_hash: string;
   search_preferences: SearchPreferences;
   enable_favicons: boolean;
+  /** The Auto-tagging rules as typed, one per line; see `parseRules`. */
+  auto_tagging_rules: string;
 };
 
 export const DEFAULT_PREFS: Prefs = {
@@ -57,6 +60,7 @@ export const DEFAULT_PREFS: Prefs = {
   custom_css_hash: "",
   search_preferences: { sort: "added_desc", shared: "off", unread: "off" },
   enable_favicons: false,
+  auto_tagging_rules: "",
 };
 
 /** Reads one field from JSON or form text, `fallback` when it is not valid. */
@@ -104,6 +108,7 @@ const READERS: { [K in keyof Prefs]: Read<Prefs[K]> } = {
   custom_css_hash: str,
   search_preferences: searchPreferences,
   enable_favicons: bool,
+  auto_tagging_rules: str,
 };
 
 const read = <K extends keyof Prefs>(key: K, value: unknown): Prefs[K] => READERS[key](value, DEFAULT_PREFS[key]);
@@ -120,6 +125,9 @@ export function readPrefs(user: User): Prefs {
 export function writePrefs(sql: SqlStorage, user: User, patch: Partial<Prefs>): void {
   updatePrefs(sql, user.id, JSON.stringify({ ...stored(user.prefs), ...patch }));
 }
+
+/** The tags the Tenant's Auto-tagging rules add to a new Bookmark with `url`. */
+export const autoTagsFor = (user: User, url: string): string[] => autoTags(parseRules(readPrefs(user).auto_tagging_rules), url);
 
 /** The fields the General settings form edits, in the order it shows them. */
 export const GENERAL_FIELDS = [

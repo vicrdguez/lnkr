@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { BASE, get, select, setupTenant } from "./helpers";
+import { BASE, get, select, setupInstance } from "./helpers";
 
 let cookie: string;
 
 beforeEach(async () => {
-  cookie = await setupTenant();
+  cookie = await setupInstance();
 });
 
 /** The HTML of `path` for the session, expecting 200. */
